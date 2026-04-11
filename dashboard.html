@@ -374,6 +374,31 @@
             cursor: pointer;
         }
         .ctrl-select:focus { border-color: var(--accent); outline: none; }
+        .ctrl-select.changed { border-color: var(--warning); background: rgba(255, 167, 38, 0.1); }
+        .profile-btn.custom {
+            background: var(--warning);
+            color: #0a0e17;
+            border-color: var(--warning);
+        }
+
+        /* ─── Activity Log ──────────────────────── */
+        .activity-log-container {
+            max-height: 250px;
+            overflow-y: auto;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+        .log-entry {
+            padding: 3px 8px;
+            border-left: 3px solid var(--border);
+            margin-bottom: 2px;
+        }
+        .log-entry .log-time { color: var(--text-muted); margin-right: 8px; }
+        .log-entry.level-info { border-left-color: var(--text-muted); color: var(--text-secondary); }
+        .log-entry.level-signal { border-left-color: var(--blue); color: var(--text-primary); }
+        .log-entry.level-blocked { border-left-color: var(--warning); color: var(--warning); }
+        .log-entry.level-trade { border-left-color: var(--profit); color: var(--profit); font-weight: 600; }
     </style>
 </head>
 <body>
@@ -408,8 +433,8 @@
         </div>
         <div id="profileDescription" style="font-size:13px;color:var(--text-secondary);margin-bottom:10px;">Select a profile to change trading behavior.</div>
         <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
-            <label style="font-size:13px;color:var(--text-secondary);">Quick Settings:</label>
-            <select id="granularitySelect" class="ctrl-select" onchange="updateSetting('bar_granularity', this.value)">
+            <label style="font-size:13px;color:var(--text-secondary);">Custom Settings:</label>
+            <select id="granularitySelect" class="ctrl-select" onchange="markCustom()">
                 <option value="M1">M1</option>
                 <option value="M5">M5</option>
                 <option value="M15" selected>M15</option>
@@ -417,25 +442,26 @@
                 <option value="H1">H1</option>
                 <option value="H4">H4</option>
             </select>
-            <select id="pollSelect" class="ctrl-select" onchange="updateSetting('poll_interval', parseInt(this.value))">
+            <select id="pollSelect" class="ctrl-select" onchange="markCustom()">
                 <option value="10">10s scan</option>
                 <option value="15">15s scan</option>
                 <option value="30" selected>30s scan</option>
                 <option value="60">60s scan</option>
             </select>
-            <select id="maxPosSelect" class="ctrl-select" onchange="updateSetting('max_positions', parseInt(this.value))">
+            <select id="maxPosSelect" class="ctrl-select" onchange="markCustom()">
                 <option value="1">1 pos</option>
                 <option value="2">2 pos</option>
                 <option value="3" selected>3 pos</option>
                 <option value="5">5 pos</option>
                 <option value="8">8 pos</option>
             </select>
-            <select id="riskSelect" class="ctrl-select" onchange="updateSetting('risk_per_trade', parseFloat(this.value))">
+            <select id="riskSelect" class="ctrl-select" onchange="markCustom()">
                 <option value="0.01">1% risk</option>
                 <option value="0.015">1.5% risk</option>
                 <option value="0.02" selected>2% risk</option>
                 <option value="0.03">3% risk</option>
             </select>
+            <button class="btn btn-accent" id="applyBtn" onclick="applyCustomSettings()" style="display:none;">Apply</button>
         </div>
     </div>
 
@@ -465,6 +491,17 @@
     <div class="card grid-full">
         <div class="card-title">Trade Readiness</div>
         <div id="tradeReadiness"><div class="loading">Loading...</div></div>
+    </div>
+
+    <!-- Activity Log -->
+    <div class="card grid-full">
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+            <span>Activity Log</span>
+            <span class="mono" style="font-size:11px;color:var(--text-muted);" id="logCount">0 entries</span>
+        </div>
+        <div id="activityLog" class="activity-log-container">
+            <div class="loading">Waiting for bot activity...</div>
+        </div>
     </div>
 
     <!-- Row 3: P&L Chart -->
@@ -988,6 +1025,8 @@
     let currentProfile = 'routine';
     let botPaused = false;
 
+    let isCustomMode = false;
+
     async function activateProfile(name) {
         try {
             const res = await fetch(`${API}/profile/activate`, {
@@ -997,7 +1036,10 @@
             });
             if (res.ok) {
                 currentProfile = name;
+                isCustomMode = false;
                 updateProfileUI(name);
+                document.getElementById('applyBtn').style.display = 'none';
+                document.querySelectorAll('.ctrl-select').forEach(s => s.classList.remove('changed'));
             }
         } catch (e) {
             console.error('Profile activation failed:', e);
@@ -1006,10 +1048,45 @@
 
     function updateProfileUI(name) {
         document.querySelectorAll('.profile-btn').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.profile === name);
+            btn.classList.remove('active', 'custom');
         });
-        document.getElementById('profileDescription').textContent = profileDescriptions[name] || '';
-        document.getElementById('activeProfileLabel').textContent = `Profile: ${name.toUpperCase()}`;
+        if (isCustomMode) {
+            document.getElementById('profileDescription').textContent = 'Custom settings applied. Adjust dropdowns and click Apply to change.';
+            document.getElementById('activeProfileLabel').textContent = 'Profile: CUSTOM';
+        } else {
+            const activeBtn = document.querySelector(`.profile-btn[data-profile="${name}"]`);
+            if (activeBtn) activeBtn.classList.add('active');
+            document.getElementById('profileDescription').textContent = profileDescriptions[name] || '';
+            document.getElementById('activeProfileLabel').textContent = `Profile: ${name.toUpperCase()}`;
+        }
+    }
+
+    function markCustom() {
+        document.getElementById('applyBtn').style.display = 'inline-block';
+        document.querySelectorAll('.ctrl-select').forEach(s => s.classList.add('changed'));
+    }
+
+    async function applyCustomSettings() {
+        const settings = {
+            bar_granularity: document.getElementById('granularitySelect').value,
+            poll_interval: parseInt(document.getElementById('pollSelect').value),
+            max_positions: parseInt(document.getElementById('maxPosSelect').value),
+            risk_per_trade: parseFloat(document.getElementById('riskSelect').value),
+        };
+        try {
+            await fetch(`${API}/settings`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(settings),
+            });
+            isCustomMode = true;
+            currentProfile = 'custom';
+            updateProfileUI('custom');
+            document.getElementById('applyBtn').style.display = 'none';
+            document.querySelectorAll('.ctrl-select').forEach(s => s.classList.remove('changed'));
+        } catch (e) {
+            console.error('Apply settings failed:', e);
+        }
     }
 
     async function togglePause() {
@@ -1035,24 +1112,10 @@
         }
     }
 
-    async function updateSetting(key, value) {
-        try {
-            const body = {};
-            body[key] = value;
-            await fetch(`${API}/settings`, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(body),
-            });
-        } catch (e) {
-            console.error('Setting update failed:', e);
-        }
-    }
-
     async function updateControlPanel() {
         const ctrl = await fetchJSON(`${API}/bot/control-status`);
         if (!ctrl) return;
-        if (ctrl.active_profile && ctrl.active_profile !== currentProfile) {
+        if (!isCustomMode && ctrl.active_profile && ctrl.active_profile !== currentProfile) {
             currentProfile = ctrl.active_profile;
             updateProfileUI(currentProfile);
         }
@@ -1061,6 +1124,23 @@
         btn.textContent = botPaused ? 'Resume' : 'Pause';
         btn.style.background = botPaused ? 'var(--profit)' : '';
         btn.style.color = botPaused ? '#0a0e17' : '';
+    }
+
+    // ─── Activity Log ───────────────────────────
+
+    async function updateActivityLog() {
+        const log = await fetchJSON(`${API}/bot/activity-log`);
+        if (!log || !log.length) return;
+
+        const container = document.getElementById('activityLog');
+        document.getElementById('logCount').textContent = `${log.length} entries`;
+
+        const html = log.slice().reverse().map(entry => {
+            const level = entry.level || 'info';
+            return `<div class="log-entry level-${level}"><span class="log-time">${entry.time}</span>${entry.message}</div>`;
+        }).join('');
+
+        container.innerHTML = html;
     }
 
     // ─── Init ───────────────────────────────────
@@ -1078,8 +1158,10 @@
 
     updateDashboard();
     updateControlPanel();
+    updateActivityLog();
     setInterval(updateDashboard, 5000);
     setInterval(updateControlPanel, 3000);
+    setInterval(updateActivityLog, 3000);
 </script>
 
 </body>

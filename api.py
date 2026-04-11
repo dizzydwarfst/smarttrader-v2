@@ -299,6 +299,13 @@ async def close_all_positions():
     return {"status": "ok", "message": "Close-all command queued."}
 
 
+@app.get("/api/bot/activity-log")
+async def get_activity_log():
+    """Get recent bot activity log entries."""
+    runtime = read_runtime_status()
+    return _json_safe(runtime.get("activity_log", []))
+
+
 @app.get("/api/bot/control-status")
 async def get_control_status():
     """Get current bot control state (profile, paused, etc.)."""

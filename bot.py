@@ -160,6 +160,7 @@ class SmartTraderBot:
         self.htf_bias = {}
         self.instrument_info = get_instrument_info()
         self.running = False
+        self.activity_log = []  # Ring buffer of recent log entries
         self.account_value = 0
         self.balance = 0
         self.unrealized_pnl = 0
@@ -633,6 +634,17 @@ class SmartTraderBot:
                 "summary": "Trade activity unavailable.",
             }
 
+    def _log_activity(self, message, level="info"):
+        """Add an entry to the activity log ring buffer."""
+        self.activity_log.append({
+            "time": datetime.now().strftime("%H:%M:%S"),
+            "message": message,
+            "level": level,
+        })
+        # Keep last 100 entries
+        if len(self.activity_log) > 100:
+            self.activity_log = self.activity_log[-100:]
+
     def _write_runtime_status(self, **extra):
         status = {
             "timestamp": datetime.now().isoformat(),
@@ -644,6 +656,7 @@ class SmartTraderBot:
             "bankroll_context": self._build_bankroll_context(),
             "poll_interval": config.POLL_INTERVAL,
             "execution_status": self._build_execution_status(),
+            "activity_log": self.activity_log[-50:],
         }
         status.update(extra)
 
@@ -776,6 +789,7 @@ class SmartTraderBot:
                     continue
                 scan_started = datetime.now().isoformat()
                 logger.info("Checking markets...")
+                self._log_activity("Scanning all instruments...")
                 news_ok, news_reason = self.news_filter.can_trade()
                 risk_ok, risk_reason = self.risk_manager.can_trade(self._effective_trading_equity())
                 loop_factors = {}
@@ -869,12 +883,18 @@ class SmartTraderBot:
                         elif not aligned:
                             result["reason"] += f" | HTF ({config.HTF_GRANULARITY}) is {htf_bias} (counter-trend)"
 
-                    if signal != Signal.HOLD:
+                    if signal == Signal.HOLD:
+                        self._log_activity(f"{instrument}: No signal (HOLD)")
+                    else:
                         confidence = result.get("confidence", "normal")
                         logger.info(
                             f"📊 {instrument} | {result['strategy'].upper()} | "
                             f"Signal: {signal} | Confidence: {confidence} | "
                             f"{result['reason']}"
+                        )
+                        self._log_activity(
+                            f"{instrument}: {signal} via {result['strategy'].upper()} [{confidence}] — {result['reason']}",
+                            level="signal",
                         )
 
                     if signal != Signal.HOLD:
@@ -907,18 +927,21 @@ class SmartTraderBot:
                             snapshot["reason"] = news_reason
                             loop_factors[instrument] = self._annotate_trade_readiness(snapshot)
                             logger.info(f"  📰 Trade blocked: {news_reason}")
+                            self._log_activity(f"{instrument}: BLOCKED — {news_reason}", level="blocked")
                             continue
                         if not risk_ok:
                             logger.info(f"  Blocked: {risk_reason}")
                             snapshot["state"] = "blocked"
                             snapshot["reason"] = risk_reason
                             loop_factors[instrument] = self._annotate_trade_readiness(snapshot)
+                            self._log_activity(f"{instrument}: BLOCKED — {risk_reason}", level="blocked")
                             continue
                         if not spread_factor["ok"]:
                             logger.info(f"  Blocked: {spread_factor['reason']}")
                             snapshot["state"] = "blocked"
                             snapshot["reason"] = spread_factor["reason"]
                             loop_factors[instrument] = self._annotate_trade_readiness(snapshot)
+                            self._log_activity(f"{instrument}: BLOCKED — {spread_factor['reason']}", level="blocked")
                             continue
                         ai_decision = self._review_entry_with_ai(instrument, result, snapshot)
                         snapshot["ai_decision"] = ai_decision
@@ -940,8 +963,10 @@ class SmartTraderBot:
                         execution = self._execute_signal(instrument, result)
                         if execution["submitted"]:
                             snapshot["state"] = "submitted"
+                            self._log_activity(f"{instrument}: TRADE OPENED — {signal} | {execution['reason']}", level="trade")
                         else:
                             snapshot["state"] = "blocked"
+                            self._log_activity(f"{instrument}: Trade rejected — {execution['reason']}", level="blocked")
                         snapshot["reason"] = execution["reason"]
 
                     if signal == Signal.HOLD:
