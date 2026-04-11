@@ -1,0 +1,45 @@
+{
+  "name": "gold_mean_reversion",
+  "status": "research",
+  "family": "mean_reversion",
+  "automation_fit": "high",
+  "instrument_focus": [
+    "XAU_USD"
+  ],
+  "source_docs": [
+    "forex_gold_day_trading_strategies.pdf",
+    "forex_gold_day_trading_strategies_summary.md"
+  ],
+  "description": "Fade unusually extended gold moves when price is stretched relative to volatility and average behavior.",
+  "best_for": [
+    "overextended gold sessions",
+    "post-spike normalization",
+    "counter-trend corrections"
+  ],
+  "avoid_when": [
+    "fresh macro catalysts",
+    "runaway trends",
+    "thin evidence of exhaustion"
+  ],
+  "entry_rules": [
+    "Require extreme extension, such as a large one-day move or strong deviation from Bollinger mean",
+    "Use RSI and ATR to confirm that price is stretched beyond normal volatility",
+    "Enter only when momentum shows signs of exhaustion"
+  ],
+  "exit_rules": [
+    "Use tight stop-losses and smaller size than trend strategies",
+    "Take profits quickly toward the mean or nearest equilibrium zone",
+    "Do not keep averaging into a move that keeps accelerating"
+  ],
+  "parameters": {
+    "preferred_timeframes": [
+      "H1",
+      "H4"
+    ],
+    "risk_per_trade_cap": 0.01
+  },
+  "research_notes": [
+    "This is a good candidate for adding a no-trade filter when extension is not truly extreme.",
+    "Because it is counter-trend, it should probably use smaller position sizing than baseline strategies."
+  ]
+}

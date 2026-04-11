@@ -1,0 +1,41 @@
+{
+  "name": "vwap_bounce",
+  "status": "testing",
+  "family": "trend_continuation",
+  "automation_fit": "high",
+  "description": "Trade intraday VWAP rejection bounces in the direction of the broader EMA bias.",
+  "best_for": [
+    "M5 practice mode",
+    "session pullbacks inside a trend",
+    "liquid FX and metals instruments"
+  ],
+  "avoid_when": [
+    "flat or fading volume",
+    "violent news whipsaw",
+    "sideways session chop"
+  ],
+  "entry_rules": [
+    "Require price to be on the correct side of the EMA bias",
+    "Wait for price to sweep through VWAP and then reclaim it with a rejection wick",
+    "Require current candle volume to be above the rolling average by the configured multiplier"
+  ],
+  "exit_rules": [
+    "Use ATR-based stop loss",
+    "Use ATR-based take profit",
+    "Do not re-enter repeatedly if VWAP reclaim keeps failing"
+  ],
+  "parameters": {
+    "bias_ema_period": 100,
+    "volume_lookback": 20,
+    "volume_mult": 1.2,
+    "wick_ratio": 1.5,
+    "preferred_timeframes": [
+      "M5",
+      "M15"
+    ]
+  },
+  "research_notes": [
+    "This is the closest clean adaptation of the user's trend plus VWAP bounce idea using only OHLCV candles.",
+    "Best used in practice mode before considering any live rollout."
+  ]
+}

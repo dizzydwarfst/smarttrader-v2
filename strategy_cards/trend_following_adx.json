@@ -1,0 +1,43 @@
+{
+  "name": "trend_following_adx",
+  "status": "research",
+  "family": "trend_following",
+  "automation_fit": "high",
+  "source_docs": [
+    "forex_gold_day_trading_strategies.pdf",
+    "forex_gold_day_trading_strategies_summary.md"
+  ],
+  "description": "Follow strong forex trends using moving average alignment and ADX confirmation.",
+  "best_for": [
+    "London and New York sessions",
+    "high-volatility directional moves",
+    "major forex pairs"
+  ],
+  "avoid_when": [
+    "sideways markets",
+    "weak ADX readings",
+    "post-news whipsaw"
+  ],
+  "entry_rules": [
+    "Enter long when price is above key moving averages and ADX is above 25",
+    "Enter short when price is below key moving averages and downside momentum is confirmed",
+    "Prefer signals aligned with the higher-timeframe trend"
+  ],
+  "exit_rules": [
+    "Exit when ADX weakens below 20 or trend structure breaks",
+    "Use a trailing stop in strong trends",
+    "Do not hold if the market transitions into range conditions"
+  ],
+  "parameters": {
+    "adx_threshold_entry": 25,
+    "adx_threshold_exit": 20,
+    "preferred_timeframes": [
+      "M15",
+      "H1"
+    ]
+  },
+  "research_notes": [
+    "This is a natural extension of the current EMA logic.",
+    "A future selector can compare plain EMA crossover versus trend-following with ADX gating."
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "name": "break_of_structure_gold",
+  "status": "research",
+  "family": "price_action",
+  "automation_fit": "medium",
+  "instrument_focus": [
+    "XAU_USD"
+  ],
+  "source_docs": [
+    "forex_gold_day_trading_strategies.pdf",
+    "forex_gold_day_trading_strategies_summary.md"
+  ],
+  "description": "Trade continuation after gold breaks the latest swing structure and confirms beyond that level.",
+  "best_for": [
+    "strong trends",
+    "continuation moves",
+    "higher-timeframe structure alignment"
+  ],
+  "avoid_when": [
+    "messy overlapping candles",
+    "low-liquidity drift",
+    "highly compressed noisy ranges"
+  ],
+  "entry_rules": [
+    "Mark the latest swing high or swing low on the active timeframe",
+    "Enter after price closes beyond the structure level or after a successful retest",
+    "Align with the broader trend whenever possible"
+  ],
+  "exit_rules": [
+    "Stop below the last higher low for longs or above the last lower high for shorts",
+    "Take profit using the next structure target or fixed reward multiple",
+    "Invalidate quickly if price falls back through the broken structure"
+  ],
+  "parameters": {
+    "preferred_timeframes": [
+      "H1",
+      "H4"
+    ]
+  },
+  "research_notes": [
+    "This should be treated as a structured trend-continuation model rather than pure breakout trading.",
+    "The bot will need clearer swing-point labeling before this is production-ready."
+  ]
+}

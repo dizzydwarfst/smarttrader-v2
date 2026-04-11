@@ -1,0 +1,1086 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartTrader Dashboard v2.0</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0e17;
+            --bg-secondary: #111827;
+            --bg-card: #1a2235;
+            --bg-card-hover: #1e2a3f;
+            --border: #2a3548;
+            --text-primary: #e8edf5;
+            --text-secondary: #8899b0;
+            --text-muted: #556677;
+            --accent: #00d4aa;
+            --accent-glow: rgba(0, 212, 170, 0.15);
+            --profit: #00e68a;
+            --loss: #ff4d6a;
+            --warning: #ffa726;
+            --blue: #4d8df7;
+            --purple: #a78bfa;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .mono { font-family: 'JetBrains Mono', monospace; }
+
+        /* ─── Header ─────────────────────────────── */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 24px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+        }
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 20px;
+            font-weight: 700;
+        }
+        .logo span { color: var(--accent); }
+        .status-bar {
+            display: flex;
+            gap: 24px;
+            align-items: center;
+        }
+        .status-pill {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+        }
+        .status-pill.live { border-color: var(--profit); color: var(--profit); }
+        .status-pill.practice { border-color: var(--blue); color: var(--blue); }
+        .dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        .dot.green { background: var(--profit); }
+        .dot.blue { background: var(--blue); }
+        .dot.red { background: var(--loss); }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        /* ─── Grid Layout ────────────────────────── */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            padding: 20px 24px;
+        }
+        .grid-full { grid-column: 1 / -1; }
+        .grid-half { grid-column: span 2; }
+        .grid-third { grid-column: span 1; }
+
+        /* ─── Cards ──────────────────────────────── */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            transition: border-color 0.2s;
+        }
+        .card:hover { border-color: var(--accent); }
+        .card-title {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+        }
+
+        /* ─── Stat Cards ─────────────────────────── */
+        .stat-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 28px;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+        .stat-sub {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+        .profit { color: var(--profit); }
+        .loss { color: var(--loss); }
+
+        /* ─── Chart ──────────────────────────────── */
+        .chart-container {
+            position: relative;
+            height: 280px;
+            width: 100%;
+        }
+
+        /* ─── Table ──────────────────────────────── */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        th {
+            text-align: left;
+            padding: 10px 12px;
+            color: var(--text-muted);
+            font-weight: 600;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 1px solid var(--border);
+        }
+        td {
+            padding: 10px 12px;
+            border-bottom: 1px solid rgba(42, 53, 72, 0.5);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+        }
+        tr:hover td { background: var(--bg-card-hover); }
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .badge-buy { background: rgba(0, 230, 138, 0.15); color: var(--profit); }
+        .badge-sell { background: rgba(255, 77, 106, 0.15); color: var(--loss); }
+        .badge-ema { background: rgba(77, 141, 247, 0.15); color: var(--blue); }
+        .badge-breakout { background: rgba(167, 139, 250, 0.15); color: var(--purple); }
+
+        /* ─── AI Chat ────────────────────────────── */
+        .ai-section { display: flex; flex-direction: column; height: 100%; }
+        .ai-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px 0;
+            max-height: 300px;
+        }
+        .ai-msg {
+            padding: 10px 14px;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            font-size: 13px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }
+        .ai-msg.bot { background: var(--bg-secondary); border-left: 3px solid var(--accent); }
+        .ai-msg.user { background: rgba(77, 141, 247, 0.1); border-left: 3px solid var(--blue); }
+        .ai-input-row {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        .ai-input-row input {
+            flex: 1;
+            padding: 10px 14px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-family: 'Outfit', sans-serif;
+            font-size: 13px;
+            outline: none;
+        }
+        .ai-input-row input:focus { border-color: var(--accent); }
+        .btn {
+            padding: 10px 18px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+        .btn-accent { background: var(--accent); color: var(--bg-primary); }
+        .btn-accent:hover { background: #00f0c0; }
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+        .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+
+        /* ─── Learning Memory ────────────────────── */
+        .memory-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(42, 53, 72, 0.5);
+            font-size: 13px;
+        }
+        .memory-param { color: var(--blue); font-weight: 600; }
+        .memory-change { font-family: 'JetBrains Mono', monospace; }
+
+        /* ─── News Events ────────────────────────── */
+        /* Trade Readiness */
+        .readiness-summary {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+        .readiness-text {
+            color: var(--text-secondary);
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        .readiness-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 6px 12px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            white-space: nowrap;
+            border: 1px solid var(--border);
+        }
+        .readiness-badge.armed,
+        .readiness-badge.ready-now,
+        .readiness-badge.submitted {
+            color: var(--profit);
+            border-color: rgba(0, 230, 138, 0.35);
+            background: rgba(0, 230, 138, 0.12);
+        }
+        .readiness-badge.blocked,
+        .readiness-badge.cooldown {
+            color: var(--loss);
+            border-color: rgba(255, 77, 106, 0.35);
+            background: rgba(255, 77, 106, 0.12);
+        }
+        .readiness-badge.mixed,
+        .readiness-badge.starting,
+        .readiness-badge.warming-up {
+            color: var(--warning);
+            border-color: rgba(255, 167, 38, 0.35);
+            background: rgba(255, 167, 38, 0.12);
+        }
+        .readiness-list {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }
+        .readiness-item {
+            background: var(--bg-secondary);
+            border: 1px solid rgba(42, 53, 72, 0.7);
+            border-radius: 10px;
+            padding: 12px;
+        }
+        .readiness-main {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+        .readiness-instrument {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        .readiness-reason {
+            color: var(--text-secondary);
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .news-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 0;
+            font-size: 13px;
+        }
+        .news-dot {
+            width: 10px; height: 10px;
+            border-radius: 50%;
+            background: var(--warning);
+            flex-shrink: 0;
+        }
+
+        /* ─── Loading ────────────────────────────── */
+        .loading {
+            color: var(--text-muted);
+            font-style: italic;
+            padding: 20px;
+            text-align: center;
+        }
+
+        /* ─── Responsive ─────────────────────────── */
+        @media (max-width: 1200px) {
+            .grid { grid-template-columns: repeat(2, 1fr); }
+            .grid-half { grid-column: span 2; }
+            .grid-third { grid-column: span 1; }
+        }
+        @media (max-width: 768px) {
+            .grid { grid-template-columns: 1fr; }
+            .grid-half, .grid-third { grid-column: span 1; }
+            .readiness-summary { flex-direction: column; }
+            .readiness-list { grid-template-columns: 1fr; }
+        }
+
+        /* ─── Control Panel ─────────────────────── */
+        .profile-btn {
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+            padding: 8px 18px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .profile-btn:hover { border-color: var(--accent); color: var(--text-primary); }
+        .profile-btn.active {
+            background: var(--accent);
+            color: #0a0e17;
+            border-color: var(--accent);
+        }
+        .ctrl-select {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .ctrl-select:focus { border-color: var(--accent); outline: none; }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="logo">🐟 SmartTrader <span>v2.0</span></div>
+    <div class="status-bar">
+        <div class="status-pill" id="modePill">
+            <div class="dot blue" id="statusDot"></div>
+            <span id="modeText">CONNECTING...</span>
+        </div>
+        <div style="color: var(--text-muted); font-size: 13px;" class="mono" id="lastUpdate">--:--:--</div>
+    </div>
+</header>
+
+<div class="grid">
+
+    <!-- Row 0: Control Panel -->
+    <div class="card grid-full" id="controlPanel">
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+            <span>Control Panel</span>
+            <span class="mono" style="font-size:12px;color:var(--text-muted);" id="activeProfileLabel">Profile: --</span>
+        </div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+            <button class="btn profile-btn" data-profile="conservative" onclick="activateProfile('conservative')">Conservative</button>
+            <button class="btn profile-btn" data-profile="routine" onclick="activateProfile('routine')">Routine</button>
+            <button class="btn profile-btn" data-profile="aggressive" onclick="activateProfile('aggressive')">Aggressive</button>
+            <button class="btn profile-btn" data-profile="scalper" onclick="activateProfile('scalper')">Scalper</button>
+            <div style="border-left:1px solid var(--border);margin:0 4px;"></div>
+            <button class="btn btn-outline" id="pauseResumeBtn" onclick="togglePause()">Pause</button>
+            <button class="btn" style="background:var(--loss);color:#fff;" onclick="closeAllPositions()">Close All</button>
+        </div>
+        <div id="profileDescription" style="font-size:13px;color:var(--text-secondary);margin-bottom:10px;">Select a profile to change trading behavior.</div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+            <label style="font-size:13px;color:var(--text-secondary);">Quick Settings:</label>
+            <select id="granularitySelect" class="ctrl-select" onchange="updateSetting('bar_granularity', this.value)">
+                <option value="M1">M1</option>
+                <option value="M5">M5</option>
+                <option value="M15" selected>M15</option>
+                <option value="M30">M30</option>
+                <option value="H1">H1</option>
+                <option value="H4">H4</option>
+            </select>
+            <select id="pollSelect" class="ctrl-select" onchange="updateSetting('poll_interval', parseInt(this.value))">
+                <option value="10">10s scan</option>
+                <option value="15">15s scan</option>
+                <option value="30" selected>30s scan</option>
+                <option value="60">60s scan</option>
+            </select>
+            <select id="maxPosSelect" class="ctrl-select" onchange="updateSetting('max_positions', parseInt(this.value))">
+                <option value="1">1 pos</option>
+                <option value="2">2 pos</option>
+                <option value="3" selected>3 pos</option>
+                <option value="5">5 pos</option>
+                <option value="8">8 pos</option>
+            </select>
+            <select id="riskSelect" class="ctrl-select" onchange="updateSetting('risk_per_trade', parseFloat(this.value))">
+                <option value="0.01">1% risk</option>
+                <option value="0.015">1.5% risk</option>
+                <option value="0.02" selected>2% risk</option>
+                <option value="0.03">3% risk</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Row 1: Key Stats -->
+    <div class="card grid-third">
+        <div class="card-title">💰 Account NAV</div>
+        <div class="stat-value mono" id="navValue">$--</div>
+        <div class="stat-sub" id="navSub">Balance: $--</div>
+    </div>
+    <div class="card grid-third">
+        <div class="card-title">📊 Today's P&L</div>
+        <div class="stat-value mono" id="dailyPnl">$--</div>
+        <div class="stat-sub" id="dailySub">-- trades today</div>
+    </div>
+    <div class="card grid-third">
+        <div class="card-title">🎯 Win Rate (14d)</div>
+        <div class="stat-value mono" id="winRate">--%</div>
+        <div class="stat-sub" id="winSub">-- wins / -- losses</div>
+    </div>
+    <div class="card grid-third">
+        <div class="card-title">📈 Profit Factor</div>
+        <div class="stat-value mono" id="profitFactor">--</div>
+        <div class="stat-sub" id="pfSub">Total P&L: $--</div>
+    </div>
+
+    <!-- Row 2: Trade Readiness -->
+    <div class="card grid-full">
+        <div class="card-title">Trade Readiness</div>
+        <div id="tradeReadiness"><div class="loading">Loading...</div></div>
+    </div>
+
+    <!-- Row 3: P&L Chart -->
+    <div class="card grid-full">
+        <div class="card-title">📈 Cumulative P&L</div>
+        <div class="chart-container">
+            <canvas id="pnlChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Row 4: Strategy Scorecard -->
+    <div class="card grid-full">
+        <div class="card-title">Strategy Scorecard</div>
+        <div id="strategyScorecard"><div class="loading">Loading...</div></div>
+    </div>
+
+    <!-- Row 5: Open Positions + Trade History -->
+    <div class="card grid-half">
+        <div class="card-title">🔴 Open Positions</div>
+        <div id="openPositions"><div class="loading">Loading...</div></div>
+    </div>
+    <div class="card grid-half">
+        <div class="card-title">📋 Recent Trades</div>
+        <div id="recentTrades" style="max-height:300px;overflow-y:auto;"><div class="loading">Loading...</div></div>
+    </div>
+
+    <!-- Row 6: Learning Memory + News Filter + AI -->
+    <div class="card grid-third">
+        <div class="card-title">🧠 Bot Memory (Learning)</div>
+        <div id="learningMemory"><div class="loading">No parameter changes yet</div></div>
+    </div>
+    <div class="card grid-third">
+        <div class="card-title">📰 News Filter</div>
+        <div id="newsFilter"><div class="loading">Loading...</div></div>
+    </div>
+    <div class="card grid-half">
+        <div class="card-title">🤖 AI Trading Advisor</div>
+        <div class="ai-section">
+            <div class="ai-messages" id="aiMessages">
+                <div class="ai-msg bot">Welcome! I'm your AI trading advisor. Click "Analyze" for a performance review, or ask me anything about your trades.</div>
+            </div>
+            <div style="display:flex;gap:8px;margin-bottom:8px;">
+                <button class="btn btn-accent" onclick="runAnalysis()">📊 Analyze</button>
+                <button class="btn btn-outline" onclick="getBriefing()">🌅 Briefing</button>
+                <button class="btn btn-outline" onclick="explainWaiting()">⏸ Why waiting?</button>
+            </div>
+            <div class="ai-input-row">
+                <input type="text" id="aiInput" placeholder="Ask about your trades..." onkeydown="if(event.key==='Enter')askAI()">
+                <button class="btn btn-accent" onclick="askAI()">Send</button>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    const API = `${window.location.origin}/api`;
+    let pnlChart = null;
+
+    // ─── Data Fetching ──────────────────────────
+
+    async function fetchJSON(url) {
+        try {
+            const res = await fetch(url);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            return await res.json();
+        } catch (e) {
+            console.error(`Fetch failed: ${url}`, e);
+            return null;
+        }
+    }
+
+    // ─── Update Dashboard ───────────────────────
+
+    async function updateDashboard() {
+        const [status, stats, scorecard, openTrades, recentTrades, chartData, learning, news] = await Promise.all([
+            fetchJSON(`${API}/status`),
+            fetchJSON(`${API}/trades/stats?days=14`),
+            fetchJSON(`${API}/strategies/scorecard?days=30&min_trades=2`),
+            fetchJSON(`${API}/trades/open`),
+            fetchJSON(`${API}/trades/recent?days=14`),
+            fetchJSON(`${API}/chart/pnl?days=14`),
+            fetchJSON(`${API}/learning/history?limit=10`),
+            fetchJSON(`${API}/news/status`),
+        ]);
+
+        // Update time
+        document.getElementById('lastUpdate').textContent = status?.last_scan_at
+            ? `Bot ${new Date(status.last_scan_at).toLocaleTimeString()}`
+            : new Date().toLocaleTimeString();
+
+        // Mode pill
+        if (status) {
+            const isPractice = status.trading_mode === 'practice';
+            const pill = document.getElementById('modePill');
+            const dot = document.getElementById('statusDot');
+            pill.className = `status-pill ${isPractice ? 'practice' : 'live'}`;
+            dot.className = `dot ${status.bot_online ? 'green' : 'red'}`;
+            document.getElementById('modeText').textContent =
+                `${isPractice ? 'PRACTICE MODE' : 'LIVE TRADING'} ${status.bot_online ? '| ONLINE' : '| OFFLINE'}`;
+
+            const effectiveEquity = status.bankroll_context?.effective_trading_equity;
+            const bankrollMode = status.bankroll_context?.mode;
+            document.getElementById('navValue').textContent = formatCurrency(status.account_nav);
+            document.getElementById('navSub').textContent =
+                bankrollMode === 'virtual'
+                    ? `Broker: ${formatCurrency(status.balance)} | Effective: ${formatCurrency(effectiveEquity)} | Unrealized: ${formatMoney(status.unrealized_pnl ?? 0)}`
+                    : `Balance: ${formatCurrency(status.balance)} | Unrealized: ${formatMoney(status.unrealized_pnl ?? 0)}`;
+            document.getElementById('dailyPnl').textContent = formatMoney(status.daily_pnl);
+            document.getElementById('dailyPnl').className = `stat-value mono ${status.daily_pnl >= 0 ? 'profit' : 'loss'}`;
+            const executionSummary = status.execution_status?.summary;
+            document.getElementById('dailySub').textContent =
+                executionSummary
+                    ? `${status.current_activity || 'Watching markets...'} | ${executionSummary}`
+                    : (status.current_activity || 'Watching markets...');
+            renderTradeReadiness(status.trade_readiness, status.decision_factors || {});
+        }
+
+        // Stats
+        if (stats) {
+            document.getElementById('winRate').textContent = `${(stats.win_rate * 100).toFixed(1)}%`;
+            document.getElementById('winSub').textContent = `${stats.wins} wins / ${stats.losses} losses`;
+            const profitFactor = stats.profit_factor;
+            document.getElementById('profitFactor').textContent =
+                profitFactor == null ? '∞' : Number(profitFactor).toFixed(2);
+            document.getElementById('pfSub').textContent = `Total P&L: ${formatMoney(stats.total_pnl)}`;
+            document.getElementById('pfSub').className = `stat-sub ${stats.total_pnl >= 0 ? 'profit' : 'loss'}`;
+        }
+
+        // Open positions
+        if (openTrades) {
+            renderOpenPositions(openTrades);
+        }
+
+        // Recent trades
+        if (recentTrades) {
+            renderRecentTrades(recentTrades);
+        }
+
+        // Chart
+        if (chartData) {
+            renderChart(chartData);
+        }
+
+        if (scorecard) {
+            renderStrategyScorecard(scorecard);
+        }
+
+        // Learning
+        if (learning) {
+            renderLearning(learning);
+        }
+
+        if (news) {
+            renderNews(news);
+        }
+    }
+
+    // ─── Renderers ──────────────────────────────
+
+    function renderOpenPositions(trades) {
+        const el = document.getElementById('openPositions');
+        if (!trades.length) {
+            el.innerHTML = '<div class="loading">No open positions — bot is watching for signals...</div>';
+            return;
+        }
+        el.innerHTML = `<table>
+            <tr><th>Instrument</th><th>Direction</th><th>Entry</th><th>Stop Loss</th><th>Take Profit</th><th>AI</th></tr>
+            ${trades.map(t => `<tr>
+                <td>${t.instrument}</td>
+                <td><span class="badge badge-${t.direction.toLowerCase()}">${t.direction}</span></td>
+                <td>${t.entry_price}</td>
+                <td>${t.stop_loss?.toFixed(3) || '--'}</td>
+                <td>${t.take_profit?.toFixed(3) || '--'}</td>
+                <td>${t.ai_action || '--'}</td>
+            </tr>`).join('')}
+        </table>`;
+    }
+
+    function renderRecentTrades(trades) {
+        const el = document.getElementById('recentTrades');
+        if (!trades.length) {
+            el.innerHTML = '<div class="loading">No trades yet — waiting for first signal...</div>';
+            return;
+        }
+        el.innerHTML = `<table>
+            <tr><th>Time</th><th>Inst</th><th>Dir</th><th>P&L</th><th>Exit</th><th>AI</th><th>Regime</th></tr>
+            ${trades.slice(0, 20).map(t => {
+                const time = new Date(t.timestamp).toLocaleTimeString();
+                const pnl = t.pnl || 0;
+                return `<tr>
+                    <td>${time}</td>
+                    <td>${t.instrument}</td>
+                    <td><span class="badge badge-${t.direction.toLowerCase()}">${t.direction}</span></td>
+                    <td class="${pnl >= 0 ? 'profit' : 'loss'}">${formatMoney(pnl)}</td>
+                    <td>${t.exit_reason || 'open'}</td>
+                    <td>${t.ai_action || '--'}</td>
+                    <td>${t.market_regime || '--'}</td>
+                </tr>`;
+            }).join('')}
+        </table>`;
+    }
+
+    function renderChart(data) {
+        const ctx = document.getElementById('pnlChart').getContext('2d');
+
+        const labels = data.map(d => new Date(d.timestamp).toLocaleTimeString());
+        const values = data.map(d => d.cumulative_pnl);
+        const colors = values.map(v => v >= 0 ? 'rgba(0, 230, 138, 0.8)' : 'rgba(255, 77, 106, 0.8)');
+
+        if (pnlChart) pnlChart.destroy();
+
+        pnlChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Cumulative P&L',
+                    data: values,
+                    borderColor: '#00d4aa',
+                    backgroundColor: 'rgba(0, 212, 170, 0.05)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: 3,
+                    pointBackgroundColor: colors,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: '#1a2235',
+                        borderColor: '#2a3548',
+                        borderWidth: 1,
+                        titleFont: { family: 'JetBrains Mono' },
+                        bodyFont: { family: 'JetBrains Mono' },
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: { color: '#556677', maxTicksLimit: 10, font: { size: 10 } },
+                        grid: { color: 'rgba(42, 53, 72, 0.3)' },
+                    },
+                    y: {
+                        ticks: {
+                            color: '#556677',
+                            font: { family: 'JetBrains Mono', size: 11 },
+                            callback: v => '$' + v.toFixed(0)
+                        },
+                        grid: { color: 'rgba(42, 53, 72, 0.3)' },
+                    }
+                }
+            }
+        });
+    }
+
+    function renderTradeReadiness(readiness, factors) {
+        const el = document.getElementById('tradeReadiness');
+        if (!readiness || !Object.keys(readiness).length) {
+            el.innerHTML = '<div class="loading">Waiting for the bot to publish readiness data...</div>';
+            return;
+        }
+
+        const badgeLabels = {
+            armed: 'Armed',
+            ready_now: 'Ready Now',
+            submitted: 'Submitted',
+            blocked: 'Blocked',
+            cooldown: 'Cooldown',
+            mixed: 'Mixed',
+            starting: 'Starting',
+            warming_up: 'Warming Up',
+        };
+        const badgeClasses = {
+            armed: 'armed',
+            ready_now: 'ready-now',
+            submitted: 'submitted',
+            blocked: 'blocked',
+            cooldown: 'cooldown',
+            mixed: 'mixed',
+            starting: 'starting',
+            warming_up: 'warming-up',
+        };
+
+        const instrumentOrder = readiness.scanned_instruments || Object.keys(factors || {});
+        const cards = instrumentOrder.map((instrument) => {
+            const snapshot = factors?.[instrument];
+            if (!snapshot) return '';
+
+            const status = snapshot.trade_readiness_status || 'starting';
+            const summary = snapshot.trade_readiness_summary || snapshot.reason || 'No status yet';
+            const label = badgeLabels[status] || status.replaceAll('_', ' ');
+            const badgeClass = badgeClasses[status] || 'mixed';
+
+            return `
+                <div class="readiness-item">
+                    <div class="readiness-main">
+                        <div class="readiness-instrument">${instrument}</div>
+                        <div class="readiness-badge ${badgeClass}">${label}</div>
+                    </div>
+                    <div class="readiness-reason">${summary}</div>
+                </div>
+            `;
+        }).filter(Boolean).join('');
+
+        const topStatus = readiness.status || 'starting';
+        const topLabel = badgeLabels[topStatus] || topStatus.replaceAll('_', ' ');
+        const topClass = badgeClasses[topStatus] || 'mixed';
+
+        el.innerHTML = `
+            <div class="readiness-summary">
+                <div class="readiness-text">${readiness.summary || 'Waiting for a trading update...'}</div>
+                <div class="readiness-badge ${topClass}">${topLabel}</div>
+            </div>
+            ${cards ? `<div class="readiness-list">${cards}</div>` : '<div class="loading">No per-instrument readiness data yet</div>'}
+        `;
+    }
+
+    function renderLearning(changes) {
+        const el = document.getElementById('learningMemory');
+        if (!changes.length) {
+            el.innerHTML = '<div class="loading">No parameter changes yet — the learning engine will update this after enough closed trades</div>';
+            return;
+        }
+        el.innerHTML = changes.map(c => `
+            <div class="memory-item">
+                <div>
+                    <span class="memory-param">${c.parameter}</span>
+                    <span class="memory-change">${c.old_value} → ${c.new_value}</span>
+                </div>
+                <div style="color:var(--text-muted);font-size:11px;">${new Date(c.timestamp).toLocaleDateString()}</div>
+            </div>
+        `).join('');
+    }
+
+    // ─── AI Functions ───────────────────────────
+
+    function renderStrategyScorecard(scorecard) {
+        const el = document.getElementById('strategyScorecard');
+        const strategies = scorecard?.strategies || [];
+        const leaders = scorecard?.leaders?.by_instrument_regime || [];
+        const overall = scorecard?.leaders?.overall;
+
+        if (!strategies.length) {
+            el.innerHTML = '<div class="loading">No closed trades with strategy labels yet â€” the scorecard will appear after a few completed trades.</div>';
+            return;
+        }
+
+        const strategyRows = strategies.slice(0, 6).map(row => `
+            <tr>
+                <td>${row.strategy_name}</td>
+                <td>${row.trades}</td>
+                <td>${formatPercent(row.win_rate)}</td>
+                <td>${formatProfitFactor(row.profit_factor)}</td>
+                <td class="${row.total_pnl >= 0 ? 'profit' : 'loss'}">${formatMoney(row.total_pnl)}</td>
+                <td>${row.eligible ? 'Ready' : 'Learning'}</td>
+            </tr>
+        `).join('');
+
+        const leaderRows = leaders.slice(0, 8).map(row => `
+            <tr>
+                <td>${row.instrument}</td>
+                <td>${row.market_regime}</td>
+                <td>${row.strategy_name}</td>
+                <td>${row.trades}</td>
+                <td class="${row.total_pnl >= 0 ? 'profit' : 'loss'}">${formatMoney(row.total_pnl)}</td>
+            </tr>
+        `).join('');
+
+        el.innerHTML = `
+            <div style="display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:14px;">
+                <div class="stat-sub">Window: last ${scorecard.window_days} days | Minimum sample: ${scorecard.min_trades} trades</div>
+                <div class="stat-sub">${overall ? `Current leader: ${overall.strategy_name} (${formatMoney(overall.total_pnl)})` : 'No clear leader yet'}</div>
+            </div>
+            <div style="overflow-x:auto;margin-bottom:14px;">
+                <table>
+                    <tr><th>Strategy</th><th>Trades</th><th>Win Rate</th><th>PF</th><th>Total P&L</th><th>Status</th></tr>
+                    ${strategyRows}
+                </table>
+            </div>
+            <div style="overflow-x:auto;">
+                <table>
+                    <tr><th>Instrument</th><th>Regime</th><th>Leader</th><th>Trades</th><th>Total P&L</th></tr>
+                    ${leaderRows || '<tr><td colspan="5" class="loading">No instrument/regime leaders yet</td></tr>'}
+                </table>
+            </div>
+        `;
+    }
+
+    function renderNews(news) {
+        const el = document.getElementById('newsFilter');
+        if (!news) {
+            el.innerHTML = '<div class="loading">News filter unavailable right now</div>';
+            return;
+        }
+        if (!news.enabled) {
+            el.innerHTML = '<div class="loading">News filter is disabled in your configuration</div>';
+            return;
+        }
+
+        const items = [];
+        if (news.is_blocked && news.block_reason) {
+            items.push(`<div class="news-item"><div class="news-dot"></div><div>${news.block_reason}</div></div>`);
+        }
+
+        if (!news.upcoming_events?.length) {
+            items.push('<div class="loading">No high-impact events in the next 24 hours</div>');
+            el.innerHTML = items.join('');
+            return;
+        }
+
+        items.push(...news.upcoming_events.map(event => `
+            <div class="news-item">
+                <div class="news-dot"></div>
+                <div>${event.currency} | ${event.title} | ${new Date(event.time).toLocaleString()}</div>
+            </div>
+        `));
+
+        el.innerHTML = items.join('');
+    }
+
+    async function runAnalysis() {
+        addAIMessage('user', '📊 Analyze my trading performance');
+        addAIMessage('bot', '⏳ Analyzing your trades...');
+        const result = await fetchJSON(`${API}/ai/analyze?days=7`);
+        removeLastAIMessage();
+        if (result && result.analysis) {
+            addAIMessage('bot', result.analysis);
+        } else {
+            addAIMessage('bot', 'Could not run analysis. Make sure CLAUDE_API_KEY is set in your .env file.');
+        }
+    }
+
+    async function getBriefing() {
+        addAIMessage('user', '🌅 Give me a market briefing');
+        addAIMessage('bot', '⏳ Checking markets...');
+        const result = await fetchJSON(`${API}/ai/analyze?days=1`);
+        removeLastAIMessage();
+        if (result && result.analysis) {
+            addAIMessage('bot', result.analysis);
+        } else {
+            addAIMessage('bot', 'Could not get briefing. Make sure CLAUDE_API_KEY is set in your .env file.');
+        }
+    }
+
+    async function explainWaiting() {
+        addAIMessage('user', 'Why is the bot waiting right now?');
+        addAIMessage('bot', 'Checking current trade factors...');
+        const result = await fetchJSON(`${API}/ai/why-waiting`);
+        removeLastAIMessage();
+        if (result && result.answer) {
+            addAIMessage('bot', result.answer);
+        } else {
+            addAIMessage('bot', 'I could not explain the waiting state right now.');
+        }
+    }
+
+    async function askAI() {
+        const input = document.getElementById('aiInput');
+        const question = input.value.trim();
+        if (!question) return;
+        input.value = '';
+
+        addAIMessage('user', question);
+        addAIMessage('bot', '⏳ Thinking...');
+
+        try {
+            const res = await fetch(`${API}/ai/ask`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ question }),
+            });
+            const result = await res.json();
+            removeLastAIMessage();
+            addAIMessage('bot', result.answer || 'No response');
+        } catch (e) {
+            removeLastAIMessage();
+            addAIMessage('bot', 'Error connecting to AI. Is CLAUDE_API_KEY set?');
+        }
+    }
+
+    function addAIMessage(type, text) {
+        const el = document.getElementById('aiMessages');
+        const msg = document.createElement('div');
+        msg.className = `ai-msg ${type}`;
+        msg.textContent = text;
+        el.appendChild(msg);
+        el.scrollTop = el.scrollHeight;
+    }
+
+    function removeLastAIMessage() {
+        const el = document.getElementById('aiMessages');
+        if (el.lastChild) el.removeChild(el.lastChild);
+    }
+
+    // ─── Helpers ─────────────────────────────────
+
+    function formatMoney(val) {
+        if (val == null) return '$0.00';
+        const sign = val >= 0 ? '+' : '';
+        return `${sign}$${val.toFixed(2)}`;
+    }
+
+    function formatCurrency(val) {
+        if (val == null || Number.isNaN(Number(val))) return '$--';
+        return `$${Number(val).toFixed(2)}`;
+    }
+
+    // ─── Control Panel ──────────────────────────
+
+    const profileDescriptions = {
+        conservative: 'Slow and safe. H1 candles, 1% risk, max 2 positions. Fewer trades, wider stops.',
+        routine: 'Balanced default. M15 candles, 2% risk, max 3 positions. Steady pace.',
+        aggressive: 'More risk, faster scans. M5 candles, 3% risk, max 5 positions. All strategies active.',
+        scalper: 'Ultra-fast M1 candles. 1.5% risk, max 8 positions. Quick in-and-out trades.',
+    };
+
+    let currentProfile = 'routine';
+    let botPaused = false;
+
+    async function activateProfile(name) {
+        try {
+            const res = await fetch(`${API}/profile/activate`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({profile: name}),
+            });
+            if (res.ok) {
+                currentProfile = name;
+                updateProfileUI(name);
+            }
+        } catch (e) {
+            console.error('Profile activation failed:', e);
+        }
+    }
+
+    function updateProfileUI(name) {
+        document.querySelectorAll('.profile-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.profile === name);
+        });
+        document.getElementById('profileDescription').textContent = profileDescriptions[name] || '';
+        document.getElementById('activeProfileLabel').textContent = `Profile: ${name.toUpperCase()}`;
+    }
+
+    async function togglePause() {
+        const endpoint = botPaused ? 'resume' : 'pause';
+        try {
+            await fetch(`${API}/bot/${endpoint}`, {method: 'POST'});
+            botPaused = !botPaused;
+            const btn = document.getElementById('pauseResumeBtn');
+            btn.textContent = botPaused ? 'Resume' : 'Pause';
+            btn.style.background = botPaused ? 'var(--profit)' : '';
+            btn.style.color = botPaused ? '#0a0e17' : '';
+        } catch (e) {
+            console.error('Pause/resume failed:', e);
+        }
+    }
+
+    async function closeAllPositions() {
+        if (!confirm('Close ALL open positions? This cannot be undone.')) return;
+        try {
+            await fetch(`${API}/bot/close-all`, {method: 'POST'});
+        } catch (e) {
+            console.error('Close all failed:', e);
+        }
+    }
+
+    async function updateSetting(key, value) {
+        try {
+            const body = {};
+            body[key] = value;
+            await fetch(`${API}/settings`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(body),
+            });
+        } catch (e) {
+            console.error('Setting update failed:', e);
+        }
+    }
+
+    async function updateControlPanel() {
+        const ctrl = await fetchJSON(`${API}/bot/control-status`);
+        if (!ctrl) return;
+        if (ctrl.active_profile && ctrl.active_profile !== currentProfile) {
+            currentProfile = ctrl.active_profile;
+            updateProfileUI(currentProfile);
+        }
+        botPaused = ctrl.paused || false;
+        const btn = document.getElementById('pauseResumeBtn');
+        btn.textContent = botPaused ? 'Resume' : 'Pause';
+        btn.style.background = botPaused ? 'var(--profit)' : '';
+        btn.style.color = botPaused ? '#0a0e17' : '';
+    }
+
+    // ─── Init ───────────────────────────────────
+
+    function formatPercent(val) {
+        if (val == null || Number.isNaN(Number(val))) return '--';
+        return `${(Number(val) * 100).toFixed(1)}%`;
+    }
+
+    function formatProfitFactor(val) {
+        if (val == null) return '∞';
+        if (Number.isNaN(Number(val))) return '--';
+        return Number(val).toFixed(2);
+    }
+
+    updateDashboard();
+    updateControlPanel();
+    setInterval(updateDashboard, 5000);
+    setInterval(updateControlPanel, 3000);
+</script>
+
+</body>
+</html>

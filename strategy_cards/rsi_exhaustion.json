@@ -1,0 +1,41 @@
+{
+  "name": "rsi_exhaustion",
+  "status": "testing",
+  "family": "mean_reversion",
+  "automation_fit": "high",
+  "description": "Fade overextended short-term moves after RSI hits an extreme and the first reversal candle appears.",
+  "best_for": [
+    "panic flushes",
+    "parabolic short-term runs",
+    "intraday overstretch"
+  ],
+  "avoid_when": [
+    "fresh macro catalysts",
+    "runaway trend acceleration",
+    "very thin liquidity"
+  ],
+  "entry_rules": [
+    "BUY after oversold RSI, a multi-bar down streak, and the first bullish reversal candle",
+    "SELL after overbought RSI, a multi-bar up streak, and the first bearish reversal candle",
+    "Treat it as a faster mean-reversion trade than trend-following setups"
+  ],
+  "exit_rules": [
+    "Use ATR-based stop loss",
+    "Use ATR-based take profit",
+    "Exit quickly if price fails to mean-revert soon after entry"
+  ],
+  "parameters": {
+    "rsi_period": 14,
+    "overbought": 85,
+    "oversold": 15,
+    "streak_min": 4,
+    "preferred_timeframes": [
+      "M5",
+      "M15"
+    ]
+  },
+  "research_notes": [
+    "This combines the user's 'broken parabolic' and 'RSI exhaustion' ideas into one candle-based rule set.",
+    "Stricter thresholds like 90/10 can be tested later if signal frequency is still too high."
+  ]
+}

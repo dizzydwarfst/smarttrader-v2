@@ -1,0 +1,35 @@
+{
+  "name": "breakout",
+  "status": "active",
+  "family": "range_expansion",
+  "description": "Trades a break outside the recent consolidation range with volume confirmation.",
+  "best_for": [
+    "post-consolidation moves",
+    "range expansion",
+    "session momentum"
+  ],
+  "avoid_when": [
+    "weak volume",
+    "false-breakout environments",
+    "major news spikes"
+  ],
+  "entry_rules": [
+    "BUY when price closes above the recent range high and volume confirms",
+    "SELL when price closes below the recent range low and volume confirms"
+  ],
+  "exit_rules": [
+    "Use ATR-based stop loss",
+    "Use ATR-based take profit",
+    "Skip if breakout direction conflicts with another active strategy"
+  ],
+  "parameters": {
+    "lookback": 20,
+    "volume_mult": 1.2,
+    "stop_loss_atr_mult": 1.5,
+    "take_profit_atr_mult": 3.0
+  },
+  "research_notes": [
+    "This strategy is often strongest after compression and before news volatility.",
+    "Future variants can specialize by session or instrument."
+  ]
+}

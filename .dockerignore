@@ -1,0 +1,10 @@
+__pycache__
+*.pyc
+.env
+.git
+*.db
+soul.md
+skills.md
+bot_status.json
+runtime_commands.json
+.claude

@@ -1,0 +1,47 @@
+{
+  "name": "ema_pullback_gold",
+  "status": "research",
+  "family": "trend_continuation",
+  "automation_fit": "high",
+  "instrument_focus": [
+    "XAU_USD"
+  ],
+  "source_docs": [
+    "forex_gold_day_trading_strategies.pdf",
+    "forex_gold_day_trading_strategies_summary.md"
+  ],
+  "description": "Trade gold pullbacks into the 20 and 50 EMA during an established intraday trend.",
+  "best_for": [
+    "XAU_USD intraday trends",
+    "London/New York overlap",
+    "clean pullbacks after impulse moves"
+  ],
+  "avoid_when": [
+    "Asian-session drift",
+    "choppy gold sessions",
+    "pre-news uncertainty"
+  ],
+  "entry_rules": [
+    "Require price to be above both the 20 EMA and 50 EMA for long setups, or below both for short setups",
+    "Wait for a pullback into the EMA zone",
+    "Enter only after bullish or bearish confirmation, such as a rejection candle or break of a minor swing"
+  ],
+  "exit_rules": [
+    "Place stop below the pullback low for longs or above the pullback high for shorts",
+    "Target at least 1:1.5 risk/reward",
+    "Prefer exits into the next intraday resistance or support area"
+  ],
+  "parameters": {
+    "ema_fast": 20,
+    "ema_slow": 50,
+    "preferred_timeframes": [
+      "M5",
+      "M15"
+    ],
+    "gold_stop_hint_usd": "2 to 4"
+  },
+  "research_notes": [
+    "This is a better gold-specific continuation model than a plain crossover.",
+    "It should be compared against the current breakout and EMA logic on XAU_USD only."
+  ]
+}

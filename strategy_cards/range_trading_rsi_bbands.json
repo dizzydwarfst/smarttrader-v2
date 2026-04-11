@@ -1,0 +1,43 @@
+{
+  "name": "range_trading_rsi_bbands",
+  "status": "research",
+  "family": "mean_reversion",
+  "automation_fit": "high",
+  "source_docs": [
+    "forex_gold_day_trading_strategies.pdf",
+    "forex_gold_day_trading_strategies_summary.md"
+  ],
+  "description": "Trade sideways markets by fading moves near support and resistance with RSI and Bollinger confirmation.",
+  "best_for": [
+    "low-volatility sessions",
+    "sideways forex markets",
+    "clear horizontal ranges"
+  ],
+  "avoid_when": [
+    "breakout conditions",
+    "major news windows",
+    "fast trend acceleration"
+  ],
+  "entry_rules": [
+    "Buy near support when RSI shows oversold conditions and price is stretched below its average",
+    "Sell near resistance when RSI shows overbought conditions and price is stretched above its average",
+    "Require the range boundaries to be visible and recently respected"
+  ],
+  "exit_rules": [
+    "Take profit near the middle or opposite side of the range",
+    "Place stops just outside the range boundary",
+    "Exit immediately if a real breakout closes beyond the range"
+  ],
+  "parameters": {
+    "rsi_oversold": 30,
+    "rsi_overbought": 70,
+    "preferred_timeframes": [
+      "M15",
+      "H1"
+    ]
+  },
+  "research_notes": [
+    "This fills a major gap in the current bot, which is more trend/breakout biased.",
+    "A regime detector can route signals here when volatility compresses and directional conviction fades."
+  ]
+}

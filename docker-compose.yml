@@ -1,0 +1,24 @@
+version: "3.8"
+
+services:
+  smarttrader:
+    build: .
+    container_name: smarttrader-bot
+    restart: always          # Auto-restart on crash = 24/7 uptime
+    ports:
+      - "8000:8000"          # Dashboard accessible at http://your-server:8000
+    env_file:
+      - .env                 # All config from your .env file
+    environment:
+      - API_HOST=0.0.0.0     # Listen on all interfaces inside container
+    volumes:
+      - ./trades.db:/app/trades.db           # Persist trade history
+      - ./soul.md:/app/soul.md               # Persist bot memory
+      - ./skills.md:/app/skills.md           # Persist skills snapshot
+      - ./strategy_cards:/app/strategy_cards  # Strategy configs
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/bot/control-status')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
