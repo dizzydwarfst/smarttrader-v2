@@ -228,6 +228,7 @@ class SmartTraderBot:
                 self._apply_profile(payload.get("profile", "routine"))
             elif command == "update_settings":
                 self._apply_settings(payload)
+                self._paused = False
             elif command == "pause":
                 self._paused = True
                 logger.info("Bot PAUSED by user command.")
@@ -253,6 +254,7 @@ class SmartTraderBot:
         settings = profile["settings"]
         self._apply_settings(settings)
         self._active_profile = profile_name
+        self._paused = False
         logger.info(f"Profile activated: {profile['label']} -- {profile['description']}")
         self.memory.append_diary_entry(
             "Profile switch",
