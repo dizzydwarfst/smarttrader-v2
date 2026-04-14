@@ -234,7 +234,14 @@ class SmartTraderBot:
                 logger.info("Bot PAUSED by user command.")
             elif command == "resume":
                 self._paused = False
-                logger.info("Bot RESUMED by user command.")
+                profile = getattr(self, '_active_profile', 'routine')
+                logger.info(f"Bot RESUMED with {profile.upper()} profile.")
+                self._log_activity(
+                    f"Bot RESUMED — running {profile.upper()} | {config.BAR_GRANULARITY} candles | "
+                    f"{config.POLL_INTERVAL}s scan | {config.RISK_PER_TRADE*100:.1f}% risk | "
+                    f"max {config.MAX_POSITIONS} positions",
+                    level="trade",
+                )
             elif command == "close_all":
                 self._close_all_positions()
             else:

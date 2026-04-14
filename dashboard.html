@@ -1121,7 +1121,8 @@
         }
         botPaused = ctrl.paused || false;
         const btn = document.getElementById('pauseResumeBtn');
-        btn.textContent = botPaused ? 'Resume' : 'Pause';
+        const profileLabel = isCustomMode ? 'Custom' : (currentProfile || 'routine');
+        btn.textContent = botPaused ? `Resume (${profileLabel})` : 'Pause';
         btn.style.background = botPaused ? 'var(--profit)' : '';
         btn.style.color = botPaused ? '#0a0e17' : '';
     }
