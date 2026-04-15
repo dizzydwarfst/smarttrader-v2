@@ -924,6 +924,26 @@ class SmartTraderBot:
                     effective_signal, reverse_applied = self._effective_signal_direction(signal)
                     snapshot["effective_signal"] = effective_signal
                     snapshot["reverse_mode_applied"] = reverse_applied
+                    if signal in (Signal.BUY, Signal.SELL):
+                        preview_entry = result.get("price")
+                        if preview_entry is None:
+                            try:
+                                preview_entry = float(df.iloc[-1]["close"])
+                            except (KeyError, TypeError, ValueError, IndexError):
+                                preview_entry = None
+                        if preview_entry is not None:
+                            snapshot["planned_entry_price"] = preview_entry
+                            snapshot["planned_stop_loss"] = self.risk_manager.calculate_stop_loss(
+                                preview_entry,
+                                effective_signal,
+                                result.get("atr", 0),
+                                result.get("regime", MarketRegime.TRENDING),
+                            )
+                            snapshot["planned_take_profit"] = self.risk_manager.calculate_take_profit(
+                                preview_entry,
+                                effective_signal,
+                                result.get("atr", 0),
+                            )
 
                     if signal == Signal.HOLD:
                         self._log_activity(f"{instrument}: No signal (HOLD)")
@@ -1025,6 +1045,9 @@ class SmartTraderBot:
                             snapshot["state"] = "submitted"
                             snapshot["effective_signal"] = execution.get("executed_direction", signal)
                             snapshot["reverse_mode_applied"] = execution.get("reverse_applied", False)
+                            snapshot["planned_entry_price"] = execution.get("fill_price", snapshot.get("planned_entry_price"))
+                            snapshot["planned_stop_loss"] = execution.get("stop_loss", snapshot.get("planned_stop_loss"))
+                            snapshot["planned_take_profit"] = execution.get("take_profit", snapshot.get("planned_take_profit"))
                             signal = execution.get("executed_direction", signal)
                             self._log_activity(
                                 f"{instrument}: EXECUTION SUMMARY - {execution['reason']}",
@@ -1741,6 +1764,11 @@ class SmartTraderBot:
             logger.info(f"     NAV: ${nav:,.2f} | Margin: ${margin:,.2f}")
 
             journal_warning = None
+            reverse_note = None
+            if reverse_applied:
+                reverse_note = (
+                    f"Reverse Mode: strategy signal {original_direction} executed as {direction}."
+                )
             try:
                 journal_trade_id = self.journal.open_trade(
                     instrument=instrument,
@@ -1767,6 +1795,7 @@ class SmartTraderBot:
                     ai_size_mult=ai_decision.get("size_mult"),
                     ai_reason=ai_decision.get("reason"),
                     ai_payload=ai_decision,
+                    notes=reverse_note,
                 )
                 logger.info(f"     Journal trade #{journal_trade_id} recorded locally.")
             except Exception as journal_error:
@@ -1812,6 +1841,9 @@ class SmartTraderBot:
                 "original_signal": original_direction,
                 "executed_direction": direction,
                 "reverse_applied": reverse_applied,
+                "fill_price": fill_price,
+                "stop_loss": stop_loss,
+                "take_profit": take_profit,
             }
 
         except V20Error as e:

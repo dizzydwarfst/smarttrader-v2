@@ -185,7 +185,7 @@ class TradeJournal:
                    bankroll_mode=None, equity_reference=None, broker_nav=None,
                    risk_pct_at_entry=None, ai_mode=None, ai_action=None,
                    ai_confidence=None, ai_size_mult=None, ai_reason=None,
-                   ai_payload=None):
+                   ai_payload=None, notes=None):
         """Record a new trade being opened. Returns the trade ID."""
         conn = self._get_conn()
         cursor = conn.cursor()
@@ -213,8 +213,8 @@ class TradeJournal:
                 atr_at_entry, market_regime, bankroll_mode, equity_reference,
                 broker_nav, risk_pct_at_entry, strategy_name, strategy_confidence,
                 strategy_details, ai_mode, ai_action, ai_confidence,
-                ai_size_mult, ai_reason, ai_payload, status
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open')
+                ai_size_mult, ai_reason, ai_payload, status, notes
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?)
         """, (
             datetime.now().isoformat(),
             instrument, oanda_trade_id, direction, entry_price, quantity,
@@ -222,7 +222,7 @@ class TradeJournal:
             atr_at_entry, market_regime, bankroll_mode, equity_reference,
             broker_nav, risk_pct_at_entry, strategy_name, strategy_confidence,
             strategy_details_json, ai_mode, ai_action, ai_confidence,
-            ai_size_mult, ai_reason, ai_payload_json,
+            ai_size_mult, ai_reason, ai_payload_json, notes,
         ))
 
         trade_id = cursor.lastrowid

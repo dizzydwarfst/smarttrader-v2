@@ -310,6 +310,37 @@
             font-size: 12px;
             line-height: 1.5;
         }
+        .readiness-plan {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(42, 53, 72, 0.6);
+            color: var(--text-secondary);
+            font-size: 12px;
+            line-height: 1.6;
+        }
+        .readiness-plan strong {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+        .table-note {
+            margin-top: 6px;
+            color: var(--warning);
+            font-size: 11px;
+            line-height: 1.5;
+        }
+        .trade-plan {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .trade-plan-line {
+            color: var(--text-secondary);
+            font-size: 11px;
+            line-height: 1.4;
+        }
+        .trade-plan-line strong {
+            color: var(--text-primary);
+        }
 
         .news-item {
             display: flex;
@@ -756,13 +787,20 @@
             return;
         }
         el.innerHTML = `<table>
-            <tr><th>Instrument</th><th>Direction</th><th>Entry</th><th>Stop Loss</th><th>Take Profit</th><th>AI</th></tr>
+            <tr><th>Instrument</th><th>Direction</th><th>Entry</th><th>Risk Plan</th><th>AI</th></tr>
             ${trades.map(t => `<tr>
                 <td>${t.instrument}</td>
-                <td><span class="badge badge-${t.direction.toLowerCase()}">${t.direction}</span></td>
-                <td>${t.entry_price}</td>
-                <td>${t.stop_loss?.toFixed(3) || '--'}</td>
-                <td>${t.take_profit?.toFixed(3) || '--'}</td>
+                <td>
+                    <span class="badge badge-${t.direction.toLowerCase()}">${t.direction}</span>
+                    ${t.notes ? `<div class="table-note">${t.notes}</div>` : ''}
+                </td>
+                <td>${formatPrice(t.entry_price)}</td>
+                <td>
+                    <div class="trade-plan">
+                        <div class="trade-plan-line"><strong>SL:</strong> ${formatPrice(t.stop_loss)}</div>
+                        <div class="trade-plan-line"><strong>TP:</strong> ${formatPrice(t.take_profit)}</div>
+                    </div>
+                </td>
                 <td>${t.ai_action || '--'}</td>
             </tr>`).join('')}
         </table>`;
@@ -782,7 +820,10 @@
                 return `<tr>
                     <td>${time}</td>
                     <td>${t.instrument}</td>
-                    <td><span class="badge badge-${t.direction.toLowerCase()}">${t.direction}</span></td>
+                    <td>
+                        <span class="badge badge-${t.direction.toLowerCase()}">${t.direction}</span>
+                        ${t.notes ? `<div class="table-note">${t.notes}</div>` : ''}
+                    </td>
                     <td class="${pnl >= 0 ? 'profit' : 'loss'}">${formatMoney(pnl)}</td>
                     <td>${t.exit_reason || 'open'}</td>
                     <td>${t.ai_action || '--'}</td>
@@ -885,6 +926,17 @@
             const summary = snapshot.trade_readiness_summary || snapshot.reason || 'No status yet';
             const label = badgeLabels[status] || status.replaceAll('_', ' ');
             const badgeClass = badgeClasses[status] || 'mixed';
+            const reversePlan = snapshot.reverse_mode_applied && snapshot.effective_signal && snapshot.effective_signal !== snapshot.final_signal
+                ? `
+                    <div class="readiness-plan">
+                        <div><strong>Strategy signal:</strong> ${snapshot.final_signal}</div>
+                        <div><strong>Will execute:</strong> ${snapshot.effective_signal}</div>
+                        <div><strong>Planned entry:</strong> ${formatPrice(snapshot.planned_entry_price)}</div>
+                        <div><strong>Stop loss:</strong> ${formatPrice(snapshot.planned_stop_loss)}</div>
+                        <div><strong>Take profit:</strong> ${formatPrice(snapshot.planned_take_profit)}</div>
+                    </div>
+                `
+                : '';
 
             return `
                 <div class="readiness-item">
@@ -893,6 +945,7 @@
                         <div class="readiness-badge ${badgeClass}">${label}</div>
                     </div>
                     <div class="readiness-reason">${summary}</div>
+                    ${reversePlan}
                 </div>
             `;
         }).filter(Boolean).join('');
@@ -1101,6 +1154,12 @@
     function formatCurrency(val) {
         if (val == null || Number.isNaN(Number(val))) return '$--';
         return `$${Number(val).toFixed(2)}`;
+    }
+    function formatPrice(val) {
+        if (val == null || Number.isNaN(Number(val))) return '--';
+        const num = Number(val);
+        const decimals = Math.abs(num) >= 100 ? 3 : 5;
+        return num.toFixed(decimals);
     }
 
     // ─── Control Panel ──────────────────────────
