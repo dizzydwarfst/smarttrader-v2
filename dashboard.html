@@ -815,7 +815,7 @@
         el.innerHTML = `<table>
             <tr><th>Time</th><th>Inst</th><th>Dir</th><th>P&L</th><th>Exit</th><th>AI</th><th>Regime</th></tr>
             ${trades.slice(0, 20).map(t => {
-                const time = new Date(t.timestamp).toLocaleTimeString();
+                const time = new Date(t.closed_at || t.timestamp).toLocaleTimeString();
                 const pnl = t.pnl || 0;
                 return `<tr>
                     <td>${time}</td>

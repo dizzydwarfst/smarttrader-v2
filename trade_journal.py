@@ -133,6 +133,8 @@ class TradeJournal:
             cursor.execute("ALTER TABLE trades ADD COLUMN ai_reason TEXT")
         if "ai_payload" not in trade_columns:
             cursor.execute("ALTER TABLE trades ADD COLUMN ai_payload TEXT")
+        if "closed_at" not in trade_columns:
+            cursor.execute("ALTER TABLE trades ADD COLUMN closed_at TEXT")
 
         # ─── Parameter changes table ─────────────────────
         cursor.execute("""
@@ -262,9 +264,10 @@ class TradeJournal:
                 hold_duration_mins = ?,
                 exit_reason = ?,
                 status = 'closed',
+                closed_at = ?,
                 notes = ?
             WHERE id = ?
-        """, (exit_price, pnl, pnl_percent, hold_mins, exit_reason, notes, trade_id))
+        """, (exit_price, pnl, pnl_percent, hold_mins, exit_reason, datetime.now().isoformat(), notes, trade_id))
 
         conn.commit()
         conn.close()
@@ -356,14 +359,17 @@ class TradeJournal:
         if instrument:
             cursor.execute("""
                 SELECT * FROM trades
-                WHERE status = 'closed' AND timestamp > ? AND instrument = ?
-                ORDER BY timestamp DESC
+                WHERE status = 'closed'
+                  AND COALESCE(closed_at, timestamp) > ?
+                  AND instrument = ?
+                ORDER BY COALESCE(closed_at, timestamp) DESC
             """, (cutoff, instrument))
         else:
             cursor.execute("""
                 SELECT * FROM trades
-                WHERE status = 'closed' AND timestamp > ?
-                ORDER BY timestamp DESC
+                WHERE status = 'closed'
+                  AND COALESCE(closed_at, timestamp) > ?
+                ORDER BY COALESCE(closed_at, timestamp) DESC
             """, (cutoff,))
 
         trades = self._fetch_trade_rows(cursor)
