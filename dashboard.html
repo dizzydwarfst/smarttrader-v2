@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SmartTrader Dashboard v2.0</title>
+    <title>SmartTrader Dashboard v3.0</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
@@ -418,6 +418,25 @@
         }
         .toggle-chip.on .dot { background: #0a0e17; }
         .toggle-chip.reverse-on .dot { background: #fff; }
+        .reverse-notice {
+            display: none;
+            align-items: flex-start;
+            gap: 12px;
+            margin-top: 12px;
+            padding: 12px 14px;
+            border-radius: 10px;
+            border: 1px solid rgba(233, 30, 99, 0.45);
+            background: rgba(233, 30, 99, 0.10);
+            color: #ffd2e4;
+            line-height: 1.5;
+        }
+        .reverse-notice strong {
+            color: #fff;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-size: 11px;
+            white-space: nowrap;
+        }
         .pnl-input {
             background: var(--bg-secondary);
             color: var(--text-primary);
@@ -453,7 +472,7 @@
 <body>
 
 <header>
-    <div class="logo">🐟 SmartTrader <span>v2.0</span></div>
+    <div class="logo">🐟 SmartTrader <span>v3.0</span></div>
     <div class="status-bar">
         <div class="status-pill" id="modePill">
             <div class="dot blue" id="statusDot"></div>
@@ -526,6 +545,10 @@
             <input type="number" id="minPnlInput" class="pnl-input" step="0.25" min="0" value="1.00" />
             <button class="btn btn-outline" onclick="applyMinPnl()" style="padding:6px 12px;font-size:12px;">Set</button>
             <span style="font-size:11px;color:var(--text-muted);margin-left:4px;">Trades below this are ignored in win-rate stats.</span>
+        </div>
+        <div class="reverse-notice" id="reverseModeNotice">
+            <strong>Reverse Mode Active</strong>
+            <div>Strategy BUY signals will be executed as SELL, and strategy SELL signals will be executed as BUY. The Activity Log will show both directions whenever a reversed trade is opened.</div>
         </div>
     </div>
 
@@ -973,6 +996,9 @@
         if (news.is_blocked && news.block_reason) {
             items.push(`<div class="news-item"><div class="news-dot"></div><div>${news.block_reason}</div></div>`);
         }
+        if (news.advisory_reason) {
+            items.push(`<div class="news-item"><div class="news-dot"></div><div>${news.advisory_reason}</div></div>`);
+        }
 
         if (!news.upcoming_events?.length) {
             items.push('<div class="loading">No high-impact events in the next 24 hours</div>');
@@ -1199,8 +1225,10 @@
     function renderReverseChip() {
         const chip = document.getElementById('reverseChip');
         const label = document.getElementById('reverseChipLabel');
+        const notice = document.getElementById('reverseModeNotice');
         chip.classList.toggle('reverse-on', reverseMode);
         label.textContent = reverseMode ? 'Reverse: ON' : 'Reverse: OFF';
+        if (notice) notice.style.display = reverseMode ? 'flex' : 'none';
     }
 
     function renderMinPnlInput() {

@@ -669,6 +669,13 @@ class SmartTraderBot:
         if len(self.activity_log) > 100:
             self.activity_log = self.activity_log[-100:]
 
+    def _effective_signal_direction(self, direction):
+        """Return the direction that will actually be executed."""
+        if config.REVERSE_MODE and direction in (Signal.BUY, Signal.SELL):
+            flipped = Signal.SELL if direction == Signal.BUY else Signal.BUY
+            return flipped, True
+        return direction, False
+
     def _write_runtime_status(self, **extra):
         status = {
             "timestamp": datetime.now().isoformat(),
@@ -914,13 +921,22 @@ class SmartTraderBot:
                         elif not aligned:
                             result["reason"] += f" | HTF ({config.HTF_GRANULARITY}) is {htf_bias} (counter-trend)"
 
+                    effective_signal, reverse_applied = self._effective_signal_direction(signal)
+                    snapshot["effective_signal"] = effective_signal
+                    snapshot["reverse_mode_applied"] = reverse_applied
+
                     if signal == Signal.HOLD:
                         self._log_activity(f"{instrument}: No signal (HOLD)")
                     else:
                         confidence = result.get("confidence", "normal")
+                        signal_label = (
+                            f"{signal} -> REVERSE {effective_signal}"
+                            if reverse_applied
+                            else str(signal)
+                        )
                         logger.info(
                             f"📊 {instrument} | {result['strategy'].upper()} | "
-                            f"Signal: {signal} | Confidence: {confidence} | "
+                            f"Signal: {signal_label} | Confidence: {confidence} | "
                             f"{result['reason']}"
                         )
                         self._log_activity(
@@ -928,14 +944,27 @@ class SmartTraderBot:
                             level="signal",
                         )
 
+                    if reverse_applied:
+                        self._log_activity(
+                            f"{instrument}: Reverse Mode ON - strategy {signal} will execute as {effective_signal}",
+                            level="signal",
+                        )
+
                     if signal != Signal.HOLD:
+                        activity_text = (
+                            f"{instrument}: {signal} -> {effective_signal} via {result['strategy'].upper()} (REVERSE MODE)"
+                            if reverse_applied
+                            else f"{instrument}: {signal} via {result['strategy'].upper()}"
+                        )
                         self._write_runtime_status(
                             bot_online=True,
-                            current_activity=f"{instrument}: {signal} via {result['strategy'].upper()}",
+                            current_activity=activity_text,
                             last_scan_at=scan_started,
                             last_signal={
                                 "instrument": instrument,
                                 "signal": signal,
+                                "effective_signal": effective_signal,
+                                "reverse_mode_applied": reverse_applied,
                                 "strategy": result["strategy"],
                                 "reason": result["reason"],
                                 "timestamp": datetime.now().isoformat(),
@@ -994,6 +1023,13 @@ class SmartTraderBot:
                         execution = self._execute_signal(instrument, result)
                         if execution["submitted"]:
                             snapshot["state"] = "submitted"
+                            snapshot["effective_signal"] = execution.get("executed_direction", signal)
+                            snapshot["reverse_mode_applied"] = execution.get("reverse_applied", False)
+                            signal = execution.get("executed_direction", signal)
+                            self._log_activity(
+                                f"{instrument}: EXECUTION SUMMARY - {execution['reason']}",
+                                level="trade",
+                            )
                             self._log_activity(f"{instrument}: TRADE OPENED — {signal} | {execution['reason']}", level="trade")
                         else:
                             snapshot["state"] = "blocked"
@@ -1354,6 +1390,17 @@ class SmartTraderBot:
             blockers.append(snapshot.get("spread_reason", "Spread too wide"))
 
         signal = snapshot.get("final_signal")
+        effective_signal = snapshot.get("effective_signal", signal)
+        reverse_note = ""
+        if (
+            snapshot.get("reverse_mode_applied")
+            and signal in (Signal.BUY, Signal.SELL)
+            and effective_signal in (Signal.BUY, Signal.SELL)
+            and effective_signal != signal
+        ):
+            reverse_note = (
+                f" Reverse Mode ON: strategy signal {signal} will execute as {effective_signal}."
+            )
         armed = state not in {"no_data", "submitted"} and not blockers
         ready_now = signal in (Signal.BUY, Signal.SELL) and not blockers and state not in {"submitted"}
 
@@ -1365,7 +1412,10 @@ class SmartTraderBot:
             )
         elif ready_now:
             readiness_status = "ready_now"
-            readiness_summary = "All trade gates are open. The bot can submit this signal now."
+            readiness_summary = (
+                "All trade gates are open. The bot can submit this signal now."
+                f"{reverse_note}"
+            )
         elif armed:
             readiness_status = "armed"
             if state == "waiting_new_candle":
@@ -1375,6 +1425,8 @@ class SmartTraderBot:
                     "Armed and ready. If the next completed candle produces a valid BUY or SELL signal, "
                     "the bot will submit it automatically."
                 )
+            if reverse_note:
+                readiness_summary = f"{readiness_summary}{reverse_note}"
         elif state == "no_data":
             readiness_status = "warming_up"
             readiness_summary = snapshot.get("reason", "Waiting for enough market data to evaluate.")
@@ -1579,19 +1631,20 @@ class SmartTraderBot:
     # ─── Execution ───────────────────────────────
 
     def _execute_signal(self, instrument, signal_data):
-        direction = signal_data["signal"]
+        original_direction = signal_data["signal"]
+        direction, reverse_applied = self._effective_signal_direction(original_direction)
 
         # ─── Reverse mode: flip every signal before execution ──────
         # When REVERSE_MODE is on, a BUY becomes a SELL and vice versa.
         # This runs after the strategy has decided but before anything
         # is sent to the broker, journal, or logs — so the rest of the
         # pipeline is completely unaware the flip happened.
-        if config.REVERSE_MODE and direction in (Signal.BUY, Signal.SELL):
-            original = direction
-            direction = Signal.SELL if direction == Signal.BUY else Signal.BUY
+        if reverse_applied:
+            original = original_direction
+            # direction is already flipped by _effective_signal_direction()
             logger.info(f"  🔄 REVERSE MODE: flipped {original} -> {direction} on {instrument}")
             self._log_activity(
-                f"REVERSE: flipped {original} -> {direction} on {instrument}",
+                f"REVERSE MODE ACTIVE: {instrument} signal {original} -> order {direction}",
                 level="signal",
             )
 
@@ -1742,7 +1795,13 @@ class SmartTraderBot:
             except Exception as memory_error:
                 logger.warning(f"Could not append memory diary entry for trade {trade_id}: {memory_error}")
 
-            reason = f"Trade #{trade_id} was filled on OANDA at {fill_price}"
+            if reverse_applied:
+                reason = (
+                    f"Signal {original_direction} was executed as {direction} because Reverse Mode is ON. "
+                    f"Trade #{trade_id} was filled on OANDA at {fill_price}"
+                )
+            else:
+                reason = f"{direction} trade #{trade_id} was filled on OANDA at {fill_price}"
             if journal_warning:
                 reason = f"{reason}. Warning: {journal_warning}"
             return {
@@ -1750,6 +1809,9 @@ class SmartTraderBot:
                 "reason": reason,
                 "trade_id": trade_id,
                 "journal_synced": journal_warning is None,
+                "original_signal": original_direction,
+                "executed_direction": direction,
+                "reverse_applied": reverse_applied,
             }
 
         except V20Error as e:
@@ -2003,7 +2065,7 @@ class SmartTraderBot:
 
     def stop(self):
         print(f"\n{'='*50}")
-        print(f"  🛑 Shutting down SmartTrader Bot v2.0...")
+        print(f"  🛑 Shutting down SmartTrader Bot v3.0...")
         print(f"{'='*50}")
         self.running = False
         self._write_runtime_status(
@@ -2029,7 +2091,7 @@ class SmartTraderBot:
         print(f"\n  👋 Data saved to {config.DB_PATH}. Run again: python bot.py\n")
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Run SmartTrader Bot v2.0")
+    parser = argparse.ArgumentParser(description="Run SmartTrader Bot v3.0")
     parser.add_argument(
         "--dashboard",
         dest="dashboard",
@@ -2052,7 +2114,7 @@ def main():
         config.AUTO_START_DASHBOARD = args.dashboard
     print(r"""
     ╔═══════════════════════════════════════╗
-    ║   🐟 SmartTrader Bot v2.0             ║
+    ║   🐟 SmartTrader Bot v3.0             ║
     ║   Multi-Strategy · News Filter · AI   ║
     ║   Gold · Silver · USD/JPY             ║
     ╚═══════════════════════════════════════╝

@@ -42,7 +42,7 @@ from trading_profiles import (
 
 logger = logging.getLogger("Dashboard")
 
-app = FastAPI(title="SmartTrader Dashboard API", version="2.0")
+app = FastAPI(title="SmartTrader Dashboard API", version="3.0")
 
 # Allow dashboard to call API from browser
 app.add_middleware(
@@ -148,7 +148,7 @@ async def get_status():
 
 @app.get("/api/news/status")
 async def get_news_status():
-    runtime = read_runtime_status()
+    runtime = sync_runtime_control_settings()
     if runtime.get("news_filter"):
         return _json_safe(runtime["news_filter"])
     news_filter.can_trade()
@@ -387,7 +387,7 @@ async def get_control_status():
 if __name__ == "__main__":
     print(r"""
     ╔═══════════════════════════════════════╗
-    ║   📊 SmartTrader Dashboard v2.0       ║
+    ║   📊 SmartTrader Dashboard v3.0       ║
     ║   Open: http://localhost:8000         ║
     ╚═══════════════════════════════════════╝
     """)

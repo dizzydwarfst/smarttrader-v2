@@ -43,7 +43,6 @@ class NewsFilter:
     """Checks economic calendar and blocks trading during high-impact events."""
 
     def __init__(self):
-        self.enabled = config.NEWS_FILTER_ENABLED
         self.blackout_before = config.NEWS_BLACKOUT_BEFORE  # minutes
         self.blackout_after = config.NEWS_BLACKOUT_AFTER    # minutes
         self.cached_events = []
@@ -51,6 +50,7 @@ class NewsFilter:
         self.fetch_interval = timedelta(hours=1)  # Re-fetch every hour
         self.is_blocked = False
         self.block_reason = ""
+        self.advisory_reason = ""
         self.last_source = "fallback"
 
     def can_trade(self):
@@ -58,11 +58,15 @@ class NewsFilter:
         Check if trading is allowed right now.
         Returns (bool, str) — (allowed, reason if blocked)
         """
-        if not self.enabled:
+        if not config.NEWS_FILTER_ENABLED:
+            self.is_blocked = False
+            self.block_reason = ""
+            self.advisory_reason = ""
             return True, "News filter disabled"
 
         # Refresh calendar if needed
         self._refresh_calendar()
+        training_bypass_active = config.is_practice and not config.DAILY_LOSS_LIMIT_ENABLED
 
         now = datetime.utcnow()
 
@@ -75,13 +79,28 @@ class NewsFilter:
             blackout_end = event_time + timedelta(minutes=self.blackout_after)
 
             if blackout_start <= now <= blackout_end:
+                blackout_reason = f"📰 News blackout: {event['title']} at {event_time.strftime('%H:%M UTC')}"
+                if training_bypass_active:
+                    self.is_blocked = False
+                    self.block_reason = ""
+                    advisory_reason = (
+                        "🎓 Training mode (practice): ignoring news blackout for "
+                        f"{event['title']} at {event_time.strftime('%H:%M UTC')}"
+                    )
+                    if advisory_reason != self.advisory_reason:
+                        logger.info(advisory_reason)
+                    self.advisory_reason = advisory_reason
+                    return True, advisory_reason
+
                 self.is_blocked = True
-                self.block_reason = f"📰 News blackout: {event['title']} at {event_time.strftime('%H:%M UTC')}"
+                self.block_reason = blackout_reason
+                self.advisory_reason = ""
                 logger.warning(self.block_reason)
                 return False, self.block_reason
 
         self.is_blocked = False
         self.block_reason = ""
+        self.advisory_reason = ""
         return True, "No upcoming high-impact news"
 
     def _refresh_calendar(self):
@@ -316,9 +335,11 @@ class NewsFilter:
     def get_status(self):
         """For the dashboard API."""
         return {
-            "enabled": self.enabled,
+            "enabled": config.NEWS_FILTER_ENABLED,
             "is_blocked": self.is_blocked,
             "block_reason": self.block_reason,
+            "advisory_reason": self.advisory_reason,
+            "training_bypass_active": config.is_practice and not config.DAILY_LOSS_LIMIT_ENABLED,
             "upcoming_events": [
                 {
                     "title": e["title"],
