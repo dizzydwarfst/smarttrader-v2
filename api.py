@@ -122,6 +122,11 @@ async def get_status():
     runtime = sync_runtime_control_settings()
     stats = journal.get_trade_stats(days=14)
     open_trades = journal.get_open_trades()
+    open_positions = (
+        journal.get_open_position_count()
+        if hasattr(journal, "get_open_position_count")
+        else len(open_trades)
+    )
     daily_pnl = journal.get_daily_pnl()
     return _json_safe({
         "timestamp": datetime.now().isoformat(),
@@ -132,7 +137,7 @@ async def get_status():
         "account_nav": runtime.get("account_nav"),
         "balance": runtime.get("balance"),
         "unrealized_pnl": runtime.get("unrealized_pnl"),
-        "open_positions": len(open_trades),
+        "open_positions": open_positions,
         "daily_pnl": daily_pnl,
         "total_trades_14d": stats["total"],
         "win_rate_14d": stats["win_rate"],

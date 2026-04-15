@@ -4,7 +4,8 @@ ai_advisor.py - Claude-powered trading advisor and trade reviewer.
 
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
+from pathlib import Path
 
 from config import config
 from strategy_library import StrategyLibrary
@@ -23,6 +24,8 @@ class AIAdvisor:
         self.client = None
         self.last_analysis = None
         self.last_analysis_time = None
+        self.review_state_path = self._resolve_review_state_path(config.AI_REVIEW_STATE_PATH)
+        self.review_state = self._load_review_state()
 
         if self.enabled:
             try:
@@ -36,6 +39,124 @@ class AIAdvisor:
             except Exception as exc:
                 logger.warning(f"Could not initialize Claude: {exc}")
                 self.enabled = False
+
+    def _resolve_review_state_path(self, raw_path):
+        path = Path(raw_path)
+        if not path.is_absolute():
+            path = Path(__file__).parent / path
+        return path
+
+    def _load_review_state(self):
+        state = {"calls": []}
+        try:
+            if self.review_state_path.exists():
+                loaded = json.loads(self.review_state_path.read_text(encoding="utf-8"))
+                if isinstance(loaded, dict):
+                    state.update(loaded)
+        except (json.JSONDecodeError, OSError) as exc:
+            logger.warning(f"Could not load AI review state: {exc}")
+        state["calls"] = self._prune_review_calls(state.get("calls", []))
+        return state
+
+    def _save_review_state(self):
+        self.review_state["calls"] = self._prune_review_calls(self.review_state.get("calls", []))
+        try:
+            self.review_state_path.parent.mkdir(parents=True, exist_ok=True)
+            temp = self.review_state_path.with_suffix(".tmp")
+            temp.write_text(json.dumps(self.review_state, indent=2), encoding="utf-8")
+            temp.replace(self.review_state_path)
+        except OSError as exc:
+            logger.warning(f"Could not save AI review state: {exc}")
+
+    def _prune_review_calls(self, calls):
+        cutoff = datetime.now() - timedelta(days=7)
+        pruned = []
+        for call in calls or []:
+            if not isinstance(call, dict):
+                continue
+            timestamp = call.get("timestamp")
+            try:
+                call_time = datetime.fromisoformat(timestamp)
+            except (TypeError, ValueError):
+                continue
+            if call_time >= cutoff:
+                pruned.append({
+                    "timestamp": call_time.isoformat(),
+                    "type": str(call.get("type", "unknown")),
+                    "scope": str(call.get("scope", "")),
+                })
+        return pruned[-1000:]
+
+    def _format_cooldown(self, seconds):
+        seconds = max(0, int(seconds))
+        minutes, remainder = divmod(seconds, 60)
+        hours, minutes = divmod(minutes, 60)
+        if hours:
+            return f"{hours}h {minutes}m"
+        if minutes:
+            return f"{minutes}m {remainder}s"
+        return f"{remainder}s"
+
+    def _automated_review_guard(self, review_type, scope=None, cooldown_seconds=0):
+        self.review_state["calls"] = self._prune_review_calls(self.review_state.get("calls", []))
+        max_reviews = max(0, int(config.AI_MAX_AUTOMATED_REVIEWS_PER_WEEK))
+        calls = self.review_state.get("calls", [])
+
+        if max_reviews == 0:
+            return False, "AI automated reviews are disabled by the weekly review budget."
+
+        if len(calls) >= max_reviews:
+            return (
+                False,
+                f"AI weekly review budget reached ({len(calls)}/{max_reviews}) to protect API credits.",
+            )
+
+        if scope and cooldown_seconds > 0:
+            for call in reversed(calls):
+                if call.get("type") != review_type or call.get("scope") != scope:
+                    continue
+                try:
+                    last_review = datetime.fromisoformat(call.get("timestamp"))
+                except (TypeError, ValueError):
+                    break
+                remaining = cooldown_seconds - (datetime.now() - last_review).total_seconds()
+                if remaining > 0:
+                    return (
+                        False,
+                        f"AI {review_type} review cooling down for {self._format_cooldown(remaining)} to save API credits.",
+                    )
+                break
+
+        return True, ""
+
+    def _record_automated_review(self, review_type, scope=None):
+        calls = self.review_state.setdefault("calls", [])
+        calls.append({
+            "timestamp": datetime.now().isoformat(),
+            "type": review_type,
+            "scope": scope or "",
+        })
+        self._save_review_state()
+
+    def _skip_entry_review(self, reason):
+        return {
+            "reviewed": False,
+            "allow_trade": True,
+            "confidence": "normal",
+            "size_mult": 1.0,
+            "bankroll_fit": "unknown",
+            "risk_flags": ["cost_guard"],
+            "reason": reason,
+        }
+
+    def _skip_exit_review(self, reason):
+        return {
+            "reviewed": False,
+            "exit_now": False,
+            "confidence": "normal",
+            "risk_flags": ["cost_guard"],
+            "reason": reason,
+        }
 
     def _instrument_list(self):
         return ", ".join(config.INSTRUMENTS)
@@ -203,6 +324,10 @@ Give a concise, helpful answer. The trader is a beginner."""
         if not self.enabled or not config.ai_learning_enabled:
             return None
 
+        allowed, reason = self._automated_review_guard("learning_adjustment", "learning")
+        if not allowed:
+            return None
+
         trade_summary = []
         for trade in recent_trades[:25]:
             trade_summary.append({
@@ -254,6 +379,7 @@ Rules:
 
         try:
             suggestion = self._parse_json_response(self._call_model(prompt, max_tokens=300))
+            self._record_automated_review("learning_adjustment", "learning")
             suggestion["source"] = "ai"
             return suggestion
         except Exception as exc:
@@ -263,6 +389,10 @@ Rules:
     def suggest_strategy_preferences(self, scorecard):
         """Ask Claude which strategy to prioritize per instrument based on scorecard data."""
         if not self.enabled or not config.ai_learning_enabled:
+            return None
+
+        allowed, reason = self._automated_review_guard("strategy_preference", "scorecard")
+        if not allowed:
             return None
 
         prompt = f"""You are helping a paper trading bot choose the best strategy per instrument.
@@ -290,6 +420,7 @@ Rules:
 
         try:
             result = self._parse_json_response(self._call_model(prompt, max_tokens=400))
+            self._record_automated_review("strategy_preference", "scorecard")
             return result
         except Exception as exc:
             logger.warning(f"AI strategy preference suggestion failed: {exc}")
@@ -299,6 +430,15 @@ Rules:
         """Review a live setup and return a structured entry decision."""
         if not self.enabled:
             return None
+
+        review_scope = f"{instrument}:{signal_payload.get('signal', 'unknown')}"
+        allowed, reason = self._automated_review_guard(
+            "entry",
+            review_scope,
+            config.AI_ENTRY_REVIEW_COOLDOWN_SECONDS,
+        )
+        if not allowed:
+            return self._skip_entry_review(reason)
 
         recent_instrument_trades = self.journal.get_recent_trades(days=30, instrument=instrument)[:8]
         recent_summary = []
@@ -352,12 +492,24 @@ Rules:
 - Only suggest a size above 1.0 if the bankroll context is healthy and the setup quality is unusually strong.
 - Do not bypass the rules-based signal. You are only filtering or resizing it."""
 
-        return self._parse_json_response(self._call_model(prompt, max_tokens=260))
+        result = self._parse_json_response(self._call_model(prompt, max_tokens=260))
+        self._record_automated_review("entry", review_scope)
+        return result
 
     def evaluate_open_trade(self, instrument, open_trade, market_snapshot, bankroll_context):
         """Review an already-open trade and decide whether to keep holding it."""
         if not self.enabled:
             return None
+
+        trade_ref = open_trade.get("oanda_trade_id") or open_trade.get("id") or open_trade.get("direction")
+        review_scope = f"{instrument}:{trade_ref}"
+        allowed, reason = self._automated_review_guard(
+            "exit",
+            review_scope,
+            config.AI_EXIT_REVIEW_COOLDOWN_SECONDS,
+        )
+        if not allowed:
+            return self._skip_exit_review(reason)
 
         recent_instrument_trades = self.journal.get_recent_trades(days=30, instrument=instrument)[:8]
         recent_summary = []
@@ -408,11 +560,18 @@ Rules:
 - If the trade is still valid and only experiencing normal noise, keep exit_now=false.
 - Prefer patience over over-management."""
 
-        return self._parse_json_response(self._call_model(prompt, max_tokens=220))
+        result = self._parse_json_response(self._call_model(prompt, max_tokens=220))
+        self._record_automated_review("exit", review_scope)
+        return result
 
     def post_trade_review(self, trade):
         """Ask Claude to review a just-closed trade and extract a learning insight."""
-        if not self.enabled or not config.ai_learning_enabled:
+        if not self.enabled or not config.ai_learning_enabled or not config.AI_POST_TRADE_REVIEW_ENABLED:
+            return None
+
+        review_scope = f"{trade.get('instrument', 'unknown')}:{trade.get('id') or trade.get('oanda_trade_id') or 'closed'}"
+        allowed, reason = self._automated_review_guard("post_trade", review_scope)
+        if not allowed:
             return None
 
         trade_data = {
@@ -450,7 +609,9 @@ Return JSON only:
 }}"""
 
         try:
-            return self._parse_json_response(self._call_model(prompt, max_tokens=200))
+            result = self._parse_json_response(self._call_model(prompt, max_tokens=200))
+            self._record_automated_review("post_trade", review_scope)
+            return result
         except Exception as exc:
             logger.warning(f"Post-trade review failed: {exc}")
             return None
@@ -515,10 +676,16 @@ Keep it concise and practical for a beginner."""
 
     def get_status(self):
         """For the dashboard."""
+        automated_reviews = self.review_state.get("calls", [])
         return {
             "enabled": self.enabled,
             "mode": config.AI_MODE,
             "model": config.AI_MODEL,
             "last_analysis": self.last_analysis,
             "last_analysis_time": self.last_analysis_time,
+            "automated_reviews_used": len(automated_reviews),
+            "automated_reviews_remaining": max(
+                0,
+                int(config.AI_MAX_AUTOMATED_REVIEWS_PER_WEEK) - len(automated_reviews),
+            ),
         }

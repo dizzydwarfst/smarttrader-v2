@@ -174,6 +174,8 @@ class SmartTraderBot:
         self.api_cooldown_until = 0.0
         self.api_cooldown_reason = ""
         self.pending_ai_exits = {}
+        self.live_open_trades_count = 0
+        self.live_open_positions_count = 0
 
     def _apply_learned_parameter_overrides(self):
         """Restore the latest learned parameters from the journal before strategies are built."""
@@ -568,6 +570,11 @@ class SmartTraderBot:
             realized_pnl = self.journal.get_total_closed_pnl()
         start_equity = config.VIRTUAL_BANKROLL if config.use_virtual_bankroll else (self.account_value or 0)
         open_trades = self.journal.get_open_trades() if hasattr(self.journal, "get_open_trades") else []
+        open_positions_count = (
+            self.journal.get_open_position_count()
+            if hasattr(self.journal, "get_open_position_count")
+            else len(open_trades)
+        )
         growth_pct = (
             ((effective_equity - start_equity) / start_equity) * 100
             if start_equity else 0
@@ -583,6 +590,7 @@ class SmartTraderBot:
             "growth_from_start_pct": growth_pct,
             "daily_pnl": self.journal.get_daily_pnl() if hasattr(self.journal, "get_daily_pnl") else 0,
             "open_trades_count": len(open_trades),
+            "open_positions_count": open_positions_count,
             "risk_per_trade": config.effective_risk_per_trade,
             "max_positions": config.MAX_POSITIONS,
             "ai_mode": config.AI_MODE,
@@ -592,6 +600,11 @@ class SmartTraderBot:
         """Summarize whether the bot has active or recent trades."""
         try:
             open_trades = self.journal.get_open_trades()
+            open_positions_count = (
+                self.journal.get_open_position_count()
+                if hasattr(self.journal, "get_open_position_count")
+                else len(open_trades)
+            )
             recent_closed = self.journal.get_recent_trades(days=30)
 
             latest_open = max(
@@ -605,7 +618,7 @@ class SmartTraderBot:
             if latest_open:
                 strategy = latest_open.get("strategy_name") or "unlabeled"
                 summary = (
-                    f"{len(open_trades)} open trade(s). Latest: "
+                    f"{open_positions_count} open position(s) across {len(open_trades)} trade(s). Latest: "
                     f"{latest_open.get('direction')} {latest_open.get('instrument')} via {strategy}."
                 )
             elif latest_closed:
@@ -637,6 +650,7 @@ class SmartTraderBot:
 
             return {
                 "open_trades_count": len(open_trades),
+                "open_positions_count": open_positions_count,
                 "recent_closed_count_30d": len(recent_closed),
                 "has_open_trade": bool(open_trades),
                 "last_trade": latest_snapshot,
@@ -718,6 +732,218 @@ class SmartTraderBot:
     def _start_api_cooldown(self, reason):
         self.api_cooldown_reason = reason
         self.api_cooldown_until = time.time() + config.API_ERROR_COOLDOWN_SECONDS
+
+    def _fetch_oanda_open_trades_snapshot(self):
+        try:
+            response = self.api.request(trades_ep.OpenTrades(self.account_id))
+        except V20Error as exc:
+            logger.error(f"Could not fetch OANDA open trades: {exc}")
+            return None
+        except Exception as exc:
+            logger.error(f"Unexpected error fetching OANDA open trades: {exc}")
+            return None
+
+        trades = response.get("trades", []) or []
+        trade_map = {}
+        by_instrument = {}
+        live_instruments = set()
+
+        for trade in trades:
+            trade_id = trade.get("id")
+            instrument = trade.get("instrument")
+            if trade_id is not None:
+                trade_map[str(trade_id)] = trade
+            if instrument:
+                by_instrument.setdefault(instrument, []).append(trade)
+                live_instruments.add(instrument)
+
+        self.live_open_trades_count = len(trades)
+        self.live_open_positions_count = len(live_instruments)
+        return {
+            "trades": trades,
+            "trade_map": trade_map,
+            "by_instrument": by_instrument,
+        }
+
+    def _finalize_trade_missing_from_broker(self, instrument, trade):
+        verified = self._verify_closed_trade(instrument, trade)
+        if verified:
+            self.journal.close_trade(
+                trade["id"],
+                verified["exit_price"],
+                verified["pnl"],
+                verified["pnl_pct"],
+                verified["reason"],
+                notes=verified.get("notes", ""),
+            )
+            self._clear_pending_ai_exit(trade)
+            try:
+                self.memory.append_diary_entry(
+                    "Trade closed",
+                    f"Trade #{trade['id']} on {instrument} closed with ${verified['pnl']:+.2f}.",
+                    details=[
+                        f"Exit price: {verified['exit_price']} | Reason: {verified['reason']}",
+                        f"P&L: {verified['pnl_pct']:+.2f}% of account",
+                    ],
+                )
+            except Exception as memory_error:
+                logger.warning(f"Could not append trade-close memory for {instrument}: {memory_error}")
+
+            if hasattr(self.memory, "refresh_skills_snapshot"):
+                try:
+                    self.memory.refresh_skills_snapshot(
+                        stats=self.journal.get_trade_stats(days=30),
+                        recent_trades=self.journal.get_recent_trades(days=30),
+                        param_history=self.journal.get_param_history(limit=10),
+                    )
+                except Exception as refresh_error:
+                    logger.warning(f"Could not refresh skills snapshot after closing {instrument}: {refresh_error}")
+
+            try:
+                closed_trade_data = dict(trade)
+                closed_trade_data["exit_price"] = verified["exit_price"]
+                closed_trade_data["pnl"] = verified["pnl"]
+                closed_trade_data["exit_reason"] = verified["reason"]
+                review = self.ai_advisor.post_trade_review(closed_trade_data)
+                if review and review.get("lesson"):
+                    logger.info(f"  🧠 AI lesson: {review['lesson']}")
+                    self.memory.append_diary_entry(
+                        "Post-trade AI lesson",
+                        review["lesson"],
+                        details=[
+                            f"Category: {review.get('category', 'general')}",
+                            f"Trade: {trade.get('direction')} {instrument} | P&L: ${verified['pnl']:+.2f}",
+                        ],
+                    )
+            except Exception as review_err:
+                logger.debug(f"Post-trade review skipped: {review_err}")
+            return True
+
+        pending_ai_exit = self._get_pending_ai_exit(trade)
+        self.journal.close_trade(
+            trade["id"],
+            0,
+            0,
+            0,
+            pending_ai_exit.get("exit_reason", "unverified") if pending_ai_exit else "unverified",
+            notes=pending_ai_exit.get("notes", "") if pending_ai_exit else "",
+        )
+        self._clear_pending_ai_exit(trade)
+        return False
+
+    def _reconcile_open_trades_with_oanda(self, instrument=None, oanda_snapshot=None):
+        if not hasattr(self.journal, "get_open_trades"):
+            return oanda_snapshot
+        journal_trades = self.journal.get_open_trades(instrument)
+        if not journal_trades:
+            return oanda_snapshot
+
+        oanda_snapshot = oanda_snapshot or self._fetch_oanda_open_trades_snapshot()
+        if not oanda_snapshot:
+            return None
+
+        trade_map = oanda_snapshot.get("trade_map", {})
+        by_instrument = oanda_snapshot.get("by_instrument", {})
+
+        for trade in journal_trades:
+            oanda_trade_id = trade.get("oanda_trade_id")
+            if oanda_trade_id and str(oanda_trade_id) in trade_map:
+                continue
+
+            if not oanda_trade_id:
+                live_candidates = by_instrument.get(trade.get("instrument"), [])
+                matched = False
+                for live_trade in live_candidates:
+                    try:
+                        units = float(live_trade.get("currentUnits", 0) or 0)
+                    except (TypeError, ValueError):
+                        units = 0
+                    live_direction = Signal.BUY if units > 0 else Signal.SELL if units < 0 else None
+                    if live_direction == trade.get("direction"):
+                        matched = True
+                        break
+                if matched:
+                    continue
+
+            self._finalize_trade_missing_from_broker(trade.get("instrument") or instrument, trade)
+
+        return oanda_snapshot
+
+    def _ensure_oanda_trade_protection(self, trade, instrument, live_trade, current_price):
+        oanda_trade_id = trade.get("oanda_trade_id")
+        if not oanda_trade_id or not live_trade:
+            return {"closed": False, "repaired": False}
+
+        missing_stop = bool(trade.get("stop_loss")) and not live_trade.get("stopLossOrder")
+        missing_take_profit = bool(trade.get("take_profit")) and not live_trade.get("takeProfitOrder")
+        if not missing_stop and not missing_take_profit:
+            return {"closed": False, "repaired": False}
+
+        local_trigger = None
+        if current_price is not None:
+            local_trigger = self.risk_manager.check_stop_loss(trade, current_price)
+        if local_trigger:
+            notes = (
+                f"Broker-side protection was missing. Closed locally when {local_trigger.replace('_', ' ')} "
+                f"was detected at {current_price}."
+            )
+            self._remember_pending_ai_exit(
+                trade,
+                {"exit_reason": local_trigger, "notes": notes},
+            )
+            self._close_oanda_position(instrument)
+            logger.info(f"  🛡️ Closed {instrument} because the local {local_trigger} was hit without broker protection.")
+            return {"closed": True, "reason": local_trigger}
+
+        if missing_take_profit and current_price is not None:
+            estimated_pnl = self._estimate_pnl_usd(
+                instrument,
+                trade["direction"],
+                trade["entry_price"],
+                current_price,
+                trade["quantity"],
+            )
+            profit_lock = max(0.0, float(config.MISSING_TP_PROFIT_LOCK_USD))
+            if estimated_pnl is not None and profit_lock > 0 and estimated_pnl >= profit_lock:
+                notes = (
+                    f"Closed locally at ${estimated_pnl:+.2f} because broker take-profit was missing "
+                    f"and the trade had already reached the profit-lock threshold."
+                )
+                self._remember_pending_ai_exit(
+                    trade,
+                    {"exit_reason": "take_profit", "notes": notes},
+                )
+                self._close_oanda_position(instrument)
+                logger.info(
+                    f"  🛡️ Locked in ${estimated_pnl:+.2f} on {instrument} because the broker take-profit was missing."
+                )
+                return {"closed": True, "reason": "take_profit"}
+
+        info = self.instrument_info.get(instrument, {})
+        precision = info.get("precision", 5)
+        data = {}
+        if missing_stop:
+            data["stopLoss"] = {"price": str(round(trade["stop_loss"], precision))}
+        if missing_take_profit:
+            data["takeProfit"] = {"price": str(round(trade["take_profit"], precision))}
+        if not data:
+            return {"closed": False, "repaired": False}
+
+        try:
+            r = trades_ep.TradeCRCDO(self.account_id, tradeID=oanda_trade_id, data=data)
+            self.api.request(r)
+            restored = []
+            if missing_stop:
+                restored.append("stop-loss")
+            if missing_take_profit:
+                restored.append("take-profit")
+            logger.info(
+                f"  🛡️ Restored {' and '.join(restored)} on {instrument} trade {oanda_trade_id}."
+            )
+            return {"closed": False, "repaired": True}
+        except Exception as exc:
+            logger.warning(f"Could not restore broker protection on {instrument} trade {oanda_trade_id}: {exc}")
+            return {"closed": False, "repaired": False}
 
     def _is_transient_api_error(self, error):
         message = str(error).lower()
@@ -828,6 +1054,7 @@ class SmartTraderBot:
                 scan_started = datetime.now().isoformat()
                 logger.info("Checking markets...")
                 self._log_activity("Scanning all instruments...")
+                oanda_snapshot = self._reconcile_open_trades_with_oanda()
                 news_ok, news_reason = self.news_filter.can_trade()
                 risk_ok, risk_reason = self.risk_manager.can_trade(self._effective_trading_equity())
                 loop_factors = {}
@@ -993,10 +1220,17 @@ class SmartTraderBot:
                         )
 
                     # Check exits
-                    exit_review = self._check_oanda_trades(instrument, snapshot)
+                    exit_review = self._check_oanda_trades(instrument, snapshot, oanda_snapshot=oanda_snapshot)
                     if exit_review.get("closed_by_ai"):
                         snapshot["state"] = "managing_position"
                         snapshot["reason"] = f"AI exit requested: {exit_review['ai_exit'].get('reason')}"
+                        loop_factors[instrument] = self._annotate_trade_readiness(snapshot)
+                        continue
+                    if exit_review.get("closed_by_guard"):
+                        snapshot["state"] = "managing_position"
+                        snapshot["reason"] = (
+                            f"Protection safeguard closed the trade: {exit_review['guard_exit'].get('reason')}"
+                        )
                         loop_factors[instrument] = self._annotate_trade_readiness(snapshot)
                         continue
 
@@ -1681,6 +1915,7 @@ class SmartTraderBot:
         trading_equity = signal_data.get("trading_equity") or self._effective_trading_equity()
         bankroll_mode = self._bankroll_mode()
 
+        self._reconcile_open_trades_with_oanda()
         can_trade, reason = self.risk_manager.can_trade(trading_equity)
         if not can_trade:
             logger.info(f"  🛑 Blocked: {reason}")
@@ -1855,16 +2090,21 @@ class SmartTraderBot:
 
     # ─── Trade Monitoring ────────────────────────
 
-    def _check_oanda_trades(self, instrument, snapshot=None):
+    def _check_oanda_trades(self, instrument, snapshot=None, oanda_snapshot=None):
+        oanda_snapshot = self._reconcile_open_trades_with_oanda(
+            instrument=instrument,
+            oanda_snapshot=oanda_snapshot,
+        )
         journal_trades = self.journal.get_open_trades(instrument)
         if not journal_trades:
-            return {"closed_by_ai": False}
+            return {"closed_by_ai": False, "closed_by_guard": False}
+        if not oanda_snapshot:
+            return {"closed_by_ai": False, "closed_by_guard": False}
         try:
-            r = trades_ep.OpenTrades(self.account_id)
-            response = self.api.request(r)
-            oanda_instruments = [t["instrument"] for t in response.get("trades", [])]
+            trade_map = oanda_snapshot.get("trade_map", {})
             for trade in journal_trades:
-                if instrument not in oanda_instruments:
+                live_trade = trade_map.get(str(trade.get("oanda_trade_id")))
+                if not live_trade:
                     verified = self._verify_closed_trade(instrument, trade)
                     if verified:
                         self.journal.close_trade(
@@ -1920,6 +2160,14 @@ class SmartTraderBot:
 
                 quote = self._get_current_price(instrument)
                 current_price = quote["mid"] if quote else None
+                protection = self._ensure_oanda_trade_protection(
+                    trade,
+                    instrument,
+                    live_trade,
+                    current_price,
+                )
+                if protection.get("closed"):
+                    return {"closed_by_ai": False, "closed_by_guard": True, "guard_exit": protection}
 
                 # ─── Trailing stop-loss update ───────────
                 if current_price and trade.get("atr_at_entry"):
@@ -1952,10 +2200,10 @@ class SmartTraderBot:
                         )
                     except Exception as memory_error:
                         logger.warning(f"Could not append AI exit diary entry for {instrument}: {memory_error}")
-                    return {"closed_by_ai": True, "ai_exit": exit_decision}
+                    return {"closed_by_ai": True, "closed_by_guard": False, "ai_exit": exit_decision}
         except V20Error as e:
             logger.error(f"Trade check error: {e}")
-        return {"closed_by_ai": False}
+        return {"closed_by_ai": False, "closed_by_guard": False}
 
     def _verify_closed_trade(self, instrument, trade):
         try:

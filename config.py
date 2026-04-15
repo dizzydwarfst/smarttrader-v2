@@ -38,6 +38,23 @@ class Config:
     AI_MIN_CONFIDENCE = os.getenv("AI_MIN_CONFIDENCE", "normal").lower()
     AI_MIN_SIZE_MULT = float(os.getenv("AI_MIN_SIZE_MULT", 0.25))
     AI_MAX_SIZE_MULT = float(os.getenv("AI_MAX_SIZE_MULT", 1.25))
+    AI_MAX_AUTOMATED_REVIEWS_PER_WEEK = int(
+        os.getenv("AI_MAX_AUTOMATED_REVIEWS_PER_WEEK", "40" if TRADING_MODE == "practice" else "120")
+    )
+    AI_ENTRY_REVIEW_COOLDOWN_SECONDS = int(
+        os.getenv("AI_ENTRY_REVIEW_COOLDOWN_SECONDS", "900" if TRADING_MODE == "practice" else "300")
+    )
+    AI_EXIT_REVIEW_COOLDOWN_SECONDS = int(
+        os.getenv("AI_EXIT_REVIEW_COOLDOWN_SECONDS", "1800" if TRADING_MODE == "practice" else "600")
+    )
+    AI_POST_TRADE_REVIEW_ENABLED = os.getenv(
+        "AI_POST_TRADE_REVIEW_ENABLED",
+        "false" if TRADING_MODE == "practice" else "true",
+    ).lower() == "true"
+    AI_REVIEW_STATE_PATH = os.getenv("AI_REVIEW_STATE_PATH", "ai_review_state.json")
+    MISSING_TP_PROFIT_LOCK_USD = float(
+        os.getenv("MISSING_TP_PROFIT_LOCK_USD", "10" if TRADING_MODE == "practice" else "0")
+    )
 
     PRACTICE_STYLE = os.getenv("PRACTICE_STYLE", "standard").lower()
     PRACTICE_BAR_GRANULARITY = os.getenv("PRACTICE_BAR_GRANULARITY", "M5")
@@ -232,6 +249,13 @@ class Config:
         print(f"  AI Advisor:    {'ON' if self.has_claude else 'OFF (no API key)'}")
         print(f"  AI Learning:   {'ON' if self.ai_learning_enabled else 'OFF'}")
         print(f"  AI Trading:    {self.AI_MODE.upper()}")
+        if self.has_claude:
+            print(
+                "  AI Budget:     "
+                f"{self.AI_MAX_AUTOMATED_REVIEWS_PER_WEEK}/week | "
+                f"entry {self.AI_ENTRY_REVIEW_COOLDOWN_SECONDS}s | "
+                f"exit {self.AI_EXIT_REVIEW_COOLDOWN_SECONDS}s"
+            )
         print(f"  Poll Every:    {self.POLL_INTERVAL}s")
         print(f"{'=' * 60}\n")
 
@@ -273,6 +297,11 @@ class Config:
             "ai_min_confidence": self.AI_MIN_CONFIDENCE,
             "ai_min_size_mult": self.AI_MIN_SIZE_MULT,
             "ai_max_size_mult": self.AI_MAX_SIZE_MULT,
+            "ai_max_automated_reviews_per_week": self.AI_MAX_AUTOMATED_REVIEWS_PER_WEEK,
+            "ai_entry_review_cooldown_seconds": self.AI_ENTRY_REVIEW_COOLDOWN_SECONDS,
+            "ai_exit_review_cooldown_seconds": self.AI_EXIT_REVIEW_COOLDOWN_SECONDS,
+            "ai_post_trade_review_enabled": self.AI_POST_TRADE_REVIEW_ENABLED,
+            "missing_tp_profit_lock_usd": self.MISSING_TP_PROFIT_LOCK_USD,
             "use_virtual_bankroll": self.use_virtual_bankroll,
             "virtual_bankroll": self.VIRTUAL_BANKROLL,
             "virtual_bankroll_floor": self.VIRTUAL_BANKROLL_FLOOR,

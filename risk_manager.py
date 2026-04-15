@@ -45,9 +45,12 @@ class RiskManager:
             self.daily_loss_triggered = False
 
         # ─── Check max open positions ────────────────────
-        open_trades = self.journal.get_open_trades()
-        if len(open_trades) >= config.MAX_POSITIONS:
-            return False, f"Max positions reached ({len(open_trades)}/{config.MAX_POSITIONS})"
+        if hasattr(self.journal, "get_open_position_count"):
+            open_positions = self.journal.get_open_position_count()
+        else:
+            open_positions = len(self.journal.get_open_trades())
+        if open_positions >= config.MAX_POSITIONS:
+            return False, f"Max positions reached ({open_positions}/{config.MAX_POSITIONS})"
 
         return True, "OK"
 

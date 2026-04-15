@@ -1,4 +1,6 @@
+import os
 import unittest
+import uuid
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -6,6 +8,7 @@ from fastapi.testclient import TestClient
 
 import api as dashboard_api
 import bot as bot_module
+from ai_advisor import AIAdvisor
 from ai_decision import AIDecisionEngine
 from strategy import MarketRegime, Signal
 
@@ -160,6 +163,9 @@ class DummyMemory:
     def append_diary_entry(self, *_args, **_kwargs):
         self.entries += 1
 
+    def refresh_skills_snapshot(self, *_args, **_kwargs):
+        return None
+
 
 class BotExecutionTests(unittest.TestCase):
     def test_execute_signal_reports_broker_fill_even_if_journal_write_fails(self):
@@ -277,6 +283,214 @@ class BotExecutionTests(unittest.TestCase):
 
         self.assertTrue(decision["should_exit"])
         self.assertEqual(decision["action"], "exit")
+
+    def test_ai_decision_engine_preserves_unreviewed_skip_decision(self):
+        advisor = SimpleNamespace(
+            enabled=True,
+            evaluate_trade_setup=lambda **_kwargs: {
+                "reviewed": False,
+                "allow_trade": True,
+                "confidence": "normal",
+                "size_mult": 1.0,
+                "bankroll_fit": "unknown",
+                "risk_flags": ["cost_guard"],
+                "reason": "AI entry review cooling down to save API credits.",
+            },
+        )
+        engine = AIDecisionEngine(advisor)
+
+        with patch.object(bot_module.config, "AI_MODE", "shadow"):
+            decision = engine.evaluate_entry(
+                instrument="EUR_USD",
+                signal_payload={"signal": Signal.BUY},
+                market_snapshot={"spread_ok": True},
+                bankroll_context={"effective_trading_equity": 1000},
+            )
+
+        self.assertFalse(decision["reviewed"])
+        self.assertTrue(decision["should_execute"])
+        self.assertIn("save API credits", decision["reason"])
+
+    def test_ai_advisor_exit_review_respects_cooldown(self):
+        state_path = os.path.join(
+            os.path.dirname(__file__),
+            f"ai_review_state_{uuid.uuid4().hex}.json",
+        )
+
+        try:
+            with patch.object(
+                bot_module.config,
+                "CLAUDE_API_KEY",
+                "",
+            ), patch.object(
+                bot_module.config,
+                "AI_REVIEW_STATE_PATH",
+                state_path,
+            ), patch.object(
+                bot_module.config,
+                "AI_EXIT_REVIEW_COOLDOWN_SECONDS",
+                3600,
+            ), patch.object(
+                bot_module.config,
+                "AI_MAX_AUTOMATED_REVIEWS_PER_WEEK",
+                10,
+            ):
+                create_calls = {"count": 0}
+
+                def fake_create(**_kwargs):
+                    create_calls["count"] += 1
+                    return SimpleNamespace(
+                        content=[
+                            SimpleNamespace(
+                                text='{"exit_now": false, "confidence": "normal", "risk_flags": [], "reason": "Still valid."}'
+                            )
+                        ]
+                    )
+
+                advisor = AIAdvisor(SimpleNamespace(get_recent_trades=lambda **_kwargs: []))
+                advisor.enabled = True
+                advisor.client = SimpleNamespace(messages=SimpleNamespace(create=fake_create))
+                advisor.strategy_library = SimpleNamespace(get_prompt_context=lambda **_kwargs: "")
+                advisor.memory = None
+
+                first = advisor.evaluate_open_trade(
+                    instrument="EUR_USD",
+                    open_trade={"id": 7, "direction": Signal.BUY},
+                    market_snapshot={"current_price": 1.25},
+                    bankroll_context={"effective_trading_equity": 1000},
+                )
+                second = advisor.evaluate_open_trade(
+                    instrument="EUR_USD",
+                    open_trade={"id": 7, "direction": Signal.BUY},
+                    market_snapshot={"current_price": 1.251},
+                    bankroll_context={"effective_trading_equity": 1000},
+                )
+        finally:
+            for leftover in (state_path, os.path.splitext(state_path)[0] + ".tmp"):
+                if os.path.exists(leftover):
+                    os.remove(leftover)
+
+        self.assertTrue(first["exit_now"] is False)
+        self.assertEqual(create_calls["count"], 1)
+        self.assertFalse(second["reviewed"])
+        self.assertIn("cooling down", second["reason"])
+
+    def test_reconcile_open_trades_uses_exact_oanda_trade_ids(self):
+        class JournalStub:
+            def __init__(self):
+                self.trades = [
+                    {
+                        "id": 1,
+                        "instrument": "EUR_USD",
+                        "oanda_trade_id": "T-1",
+                        "direction": Signal.BUY,
+                        "entry_price": 1.1000,
+                        "quantity": 1000,
+                        "status": "open",
+                    },
+                    {
+                        "id": 2,
+                        "instrument": "EUR_USD",
+                        "oanda_trade_id": "T-2",
+                        "direction": Signal.BUY,
+                        "entry_price": 1.1010,
+                        "quantity": 1000,
+                        "status": "open",
+                    },
+                ]
+                self.closed = []
+
+            def get_open_trades(self, instrument=None):
+                return [
+                    trade for trade in self.trades
+                    if trade["status"] == "open" and (instrument is None or trade["instrument"] == instrument)
+                ]
+
+            def close_trade(self, trade_id, *_args, **_kwargs):
+                self.closed.append(trade_id)
+                for trade in self.trades:
+                    if trade["id"] == trade_id:
+                        trade["status"] = "closed"
+
+            def get_trade_stats(self, days=30):
+                return {"total": 0}
+
+            def get_recent_trades(self, days=30):
+                return []
+
+            def get_param_history(self, limit=10):
+                return []
+
+        bot = bot_module.SmartTraderBot.__new__(bot_module.SmartTraderBot)
+        bot.journal = JournalStub()
+        bot.memory = DummyMemory()
+        bot.ai_advisor = SimpleNamespace(post_trade_review=lambda *_args, **_kwargs: None)
+        bot._get_pending_ai_exit = lambda trade: None
+        bot._clear_pending_ai_exit = lambda trade: None
+        bot._verify_closed_trade = lambda instrument, trade: {
+            "exit_price": 1.1020,
+            "pnl": 5.0,
+            "pnl_pct": 0.5,
+            "reason": "signal",
+            "notes": "synced from broker state",
+        }
+
+        snapshot = {
+            "trade_map": {
+                "T-2": {"id": "T-2", "instrument": "EUR_USD", "currentUnits": "1000"},
+            },
+            "by_instrument": {
+                "EUR_USD": [{"id": "T-2", "instrument": "EUR_USD", "currentUnits": "1000"}],
+            },
+        }
+
+        bot._reconcile_open_trades_with_oanda(instrument="EUR_USD", oanda_snapshot=snapshot)
+
+        self.assertEqual(bot.journal.closed, [1])
+        self.assertEqual(len(bot.journal.get_open_trades("EUR_USD")), 1)
+        self.assertEqual(bot.journal.get_open_trades("EUR_USD")[0]["oanda_trade_id"], "T-2")
+
+    def test_missing_take_profit_profit_lock_closes_trade_as_win(self):
+        bot = bot_module.SmartTraderBot.__new__(bot_module.SmartTraderBot)
+        bot.account_id = "practice-account"
+        bot.instrument_info = {"XAU_USD": {"precision": 3}}
+        bot.risk_manager = SimpleNamespace(check_stop_loss=lambda trade, price: None)
+
+        remembered = {}
+        closed = []
+        bot._remember_pending_ai_exit = lambda trade, payload: remembered.update(payload)
+        bot._close_oanda_position = lambda instrument: closed.append(instrument)
+        bot._estimate_pnl_usd = lambda *args, **_kwargs: 13.5
+
+        trade = {
+            "id": 9,
+            "oanda_trade_id": "T-9",
+            "direction": Signal.SELL,
+            "entry_price": 4801.280,
+            "quantity": 1,
+            "stop_loss": 4806.0,
+            "take_profit": 4778.540,
+        }
+        live_trade = {
+            "id": "T-9",
+            "instrument": "XAU_USD",
+            "currentUnits": "-1",
+            "stopLossOrder": {"id": "SL-1"},
+        }
+
+        with patch.object(bot_module.config, "MISSING_TP_PROFIT_LOCK_USD", 10):
+            result = bot._ensure_oanda_trade_protection(
+                trade,
+                "XAU_USD",
+                live_trade,
+                current_price=4791.4,
+            )
+
+        self.assertTrue(result["closed"])
+        self.assertEqual(result["reason"], "take_profit")
+        self.assertEqual(closed, ["XAU_USD"])
+        self.assertEqual(remembered["exit_reason"], "take_profit")
+        self.assertIn("profit-lock threshold", remembered["notes"])
 
     def test_verify_closed_trade_uses_pending_ai_exit_reason(self):
         bot = bot_module.SmartTraderBot.__new__(bot_module.SmartTraderBot)

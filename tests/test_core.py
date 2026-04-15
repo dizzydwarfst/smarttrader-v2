@@ -137,6 +137,49 @@ class TradeJournalTests(unittest.TestCase):
         self.assertEqual(scorecard["leaders"]["by_instrument_regime"][0]["market_regime"], MarketRegime.TRENDING)
         self.assertTrue(any(row["strategy_name"] == "breakout" for row in scorecard["strategies"]))
 
+    def test_open_position_count_uses_unique_instruments(self):
+        self.journal.open_trade(
+            instrument="EUR_USD",
+            direction=Signal.BUY,
+            entry_price=1.1,
+            quantity=1000,
+            stop_loss=1.09,
+            take_profit=1.12,
+            fast_ema=9,
+            slow_ema=21,
+            atr_at_entry=0.002,
+            market_regime=MarketRegime.TRENDING,
+            oanda_trade_id="T-1",
+        )
+        self.journal.open_trade(
+            instrument="EUR_USD",
+            direction=Signal.BUY,
+            entry_price=1.101,
+            quantity=800,
+            stop_loss=1.091,
+            take_profit=1.121,
+            fast_ema=9,
+            slow_ema=21,
+            atr_at_entry=0.002,
+            market_regime=MarketRegime.TRENDING,
+            oanda_trade_id="T-2",
+        )
+        self.journal.open_trade(
+            instrument="XAU_USD",
+            direction=Signal.SELL,
+            entry_price=2400,
+            quantity=1,
+            stop_loss=2410,
+            take_profit=2380,
+            fast_ema=9,
+            slow_ema=21,
+            atr_at_entry=5,
+            market_regime=MarketRegime.VOLATILE,
+            oanda_trade_id="T-3",
+        )
+
+        self.assertEqual(self.journal.get_open_position_count(), 2)
+
 
 class StrategyManagerTests(unittest.TestCase):
     def test_strategy_manager_results_remain_json_safe(self):

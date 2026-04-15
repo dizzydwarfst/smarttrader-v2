@@ -337,6 +337,15 @@ class TradeJournal:
         conn.close()
         return trades
 
+    def get_open_position_count(self):
+        """Count live positions by instrument rather than raw trade rows."""
+        conn = self._get_conn()
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(DISTINCT instrument) FROM trades WHERE status = 'open'")
+        row = cursor.fetchone()
+        conn.close()
+        return int(row[0] or 0)
+
     def get_recent_trades(self, days=14, instrument=None):
         """Get closed trades from the last N days."""
         conn = self._get_conn()

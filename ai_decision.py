@@ -56,14 +56,16 @@ class AIDecisionEngine:
 
     def _sanitize_decision(self, raw_decision, mode):
         decision = self._base_decision(mode=mode)
-        decision["reviewed"] = True
 
         if not isinstance(raw_decision, dict):
+            decision["reviewed"] = True
             decision["allow_trade"] = mode != "gated"
             decision["should_execute"] = mode != "gated"
             decision["action"] = "pass" if mode != "gated" else "veto"
             decision["reason"] = "AI returned an invalid decision payload."
             return decision
+
+        decision["reviewed"] = bool(raw_decision.get("reviewed", True))
 
         confidence = str(raw_decision.get("confidence", "normal")).lower()
         if confidence not in CONFIDENCE_RANK:
@@ -119,11 +121,13 @@ class AIDecisionEngine:
 
     def _sanitize_exit_decision(self, raw_decision, mode):
         decision = self._base_exit_decision(mode=mode)
-        decision["reviewed"] = True
 
         if not isinstance(raw_decision, dict):
+            decision["reviewed"] = True
             decision["reason"] = "AI returned an invalid exit decision payload."
             return decision
+
+        decision["reviewed"] = bool(raw_decision.get("reviewed", True))
 
         confidence = str(raw_decision.get("confidence", "normal")).lower()
         if confidence not in CONFIDENCE_RANK:
