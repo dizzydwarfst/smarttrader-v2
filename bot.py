@@ -217,7 +217,7 @@ class SmartTraderBot:
         """Check for and execute pending runtime commands from the API."""
         cmd = read_command()
         if not cmd:
-            return
+            return False
 
         command = cmd.get("command")
         payload = cmd.get("payload", {})
@@ -250,6 +250,21 @@ class SmartTraderBot:
             logger.error(f"Error processing command '{command}': {e}")
         finally:
             acknowledge_command()
+        return True
+
+    def _sleep_with_command_checks(self, seconds, step=0.25):
+        """Sleep in short chunks so dashboard commands take effect quickly."""
+        deadline = time.time() + max(0, seconds)
+        while self.running:
+            if self._process_runtime_commands():
+                return True
+
+            remaining = deadline - time.time()
+            if remaining <= 0:
+                return False
+
+            time.sleep(min(step, remaining))
+        return False
 
     def _apply_profile(self, profile_name: str):
         """Apply a trading profile, updating config and rebuilding strategies."""
@@ -666,6 +681,13 @@ class SmartTraderBot:
             "poll_interval": config.POLL_INTERVAL,
             "execution_status": self._build_execution_status(),
             "activity_log": self.activity_log[-50:],
+            # These three live in the runtime status so the api.py subprocess
+            # (which has its own separate config object) can report the bot's
+            # CURRENT state via /api/bot/control-status, not whatever it
+            # loaded from the env file at startup.
+            "daily_loss_limit_enabled": config.DAILY_LOSS_LIMIT_ENABLED,
+            "reverse_mode": config.REVERSE_MODE,
+            "min_trade_pnl": config.MIN_TRADE_PNL,
         }
         status.update(extra)
 
@@ -772,7 +794,7 @@ class SmartTraderBot:
                         news_filter=self.news_filter.get_status(),
                         active_profile=getattr(self, '_active_profile', 'routine'),
                     )
-                    time.sleep(2)
+                    self._sleep_with_command_checks(2)
                     continue
 
                 schedule.run_pending()
@@ -794,7 +816,7 @@ class SmartTraderBot:
                         wait_reasons=wait_reasons,
                         trade_readiness=self._build_trade_readiness(self.decision_factors),
                     )
-                    time.sleep(min(wait_seconds, config.POLL_INTERVAL))
+                    self._sleep_with_command_checks(min(wait_seconds, config.POLL_INTERVAL))
                     continue
                 scan_started = datetime.now().isoformat()
                 logger.info("Checking markets...")
@@ -1012,7 +1034,7 @@ class SmartTraderBot:
                     paused=getattr(self, '_paused', False),
                 )
 
-                time.sleep(config.POLL_INTERVAL)
+                self._sleep_with_command_checks(config.POLL_INTERVAL)
 
             except KeyboardInterrupt:
                 self.stop()

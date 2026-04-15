@@ -76,6 +76,23 @@ def read_runtime_status():
         return {}
 
 
+def sync_runtime_control_settings(runtime: dict | None = None):
+    """Mirror runtime-only bot settings into this API subprocess."""
+    runtime = read_runtime_status() if runtime is None else runtime
+
+    if "daily_loss_limit_enabled" in runtime:
+        config.DAILY_LOSS_LIMIT_ENABLED = bool(runtime["daily_loss_limit_enabled"])
+    if "reverse_mode" in runtime:
+        config.REVERSE_MODE = bool(runtime["reverse_mode"])
+    if "min_trade_pnl" in runtime:
+        try:
+            config.MIN_TRADE_PNL = float(runtime["min_trade_pnl"])
+        except (TypeError, ValueError):
+            pass
+
+    return runtime
+
+
 def _json_safe(payload):
     return make_json_safe(payload)
 
@@ -95,13 +112,14 @@ async def serve_dashboard():
 
 @app.get("/api/config")
 async def get_config():
+    sync_runtime_control_settings()
     return _json_safe(config.to_dict())
 
 
 @app.get("/api/status")
 async def get_status():
     """Overall bot status."""
-    runtime = read_runtime_status()
+    runtime = sync_runtime_control_settings()
     stats = journal.get_trade_stats(days=14)
     open_trades = journal.get_open_trades()
     daily_pnl = journal.get_daily_pnl()
@@ -167,11 +185,13 @@ async def get_recent_trades(days: int = 14):
 
 @app.get("/api/trades/stats")
 async def get_trade_stats(days: int = 14):
+    sync_runtime_control_settings()
     return _json_safe(journal.get_trade_stats(days=days))
 
 
 @app.get("/api/strategies/scorecard")
 async def get_strategy_scorecard(days: int = 30, min_trades: int = 3):
+    sync_runtime_control_settings()
     return _json_safe(journal.get_strategy_scorecard(days=days, min_trades=min_trades))
 
 
@@ -186,17 +206,19 @@ async def get_learning_history(limit: int = 20):
 
 @app.get("/api/ai/status")
 async def get_ai_status():
+    sync_runtime_control_settings()
     return _json_safe(advisor.get_status())
 
 
 @app.get("/api/ai/analyze")
 async def analyze_performance(days: int = 7):
+    sync_runtime_control_settings()
     return _json_safe(advisor.analyze_performance(days=days))
 
 
 @app.get("/api/ai/why-waiting")
 async def explain_why_waiting(instrument: str | None = None):
-    runtime = read_runtime_status()
+    runtime = sync_runtime_control_settings()
     return _json_safe(advisor.explain_waiting(runtime_status=runtime, instrument=instrument))
 
 
@@ -335,14 +357,14 @@ async def set_min_trade_pnl(body: dict):
 @app.get("/api/bot/activity-log")
 async def get_activity_log():
     """Get recent bot activity log entries."""
-    runtime = read_runtime_status()
+    runtime = sync_runtime_control_settings()
     return _json_safe(runtime.get("activity_log", []))
 
 
 @app.get("/api/bot/control-status")
 async def get_control_status():
     """Get current bot control state (profile, paused, etc.)."""
-    runtime = read_runtime_status()
+    runtime = sync_runtime_control_settings()
     return _json_safe({
         "active_profile": runtime.get("active_profile", "routine"),
         "paused": runtime.get("paused", False),
@@ -350,6 +372,13 @@ async def get_control_status():
         "poll_interval": runtime.get("poll_interval", config.POLL_INTERVAL),
         "current_activity": runtime.get("current_activity", "Unknown"),
         "pending_command": read_command() is not None,
+        # Read toggle state from the runtime status file the bot writes,
+        # not from this subprocess's own stale config object.
+        "daily_loss_limit_enabled": runtime.get(
+            "daily_loss_limit_enabled", config.DAILY_LOSS_LIMIT_ENABLED
+        ),
+        "reverse_mode": runtime.get("reverse_mode", config.REVERSE_MODE),
+        "min_trade_pnl": runtime.get("min_trade_pnl", config.MIN_TRADE_PNL),
     })
 
 

@@ -1180,6 +1180,14 @@
 
     let trainingMode = false;  // ON = daily loss limit disabled
     let reverseMode = false;
+    let minTradePnl = 1.0;
+    // When the user clicks a toggle, we update the UI immediately and hold
+    // the optimistic state for a few seconds so the periodic poll does not
+    // flicker it back before the bot has processed the queued command.
+    let trainingPendingUntil = 0;
+    let reversePendingUntil = 0;
+    let minPnlPendingUntil = 0;
+    const PENDING_HOLD_MS = 12000;
 
     function renderTrainingChip() {
         const chip = document.getElementById('trainingChip');
@@ -1195,20 +1203,37 @@
         label.textContent = reverseMode ? 'Reverse: ON' : 'Reverse: OFF';
     }
 
+    function renderMinPnlInput() {
+        const input = document.getElementById('minPnlInput');
+        const value = Number(minTradePnl);
+        if (!input || document.activeElement === input || Number.isNaN(value)) return;
+        input.value = value.toFixed(2);
+    }
+
     async function toggleTrainingMode() {
         const next = !trainingMode;
+        // Optimistic: flip now, hold for PENDING_HOLD_MS so the periodic poll
+        // doesn't revert before the bot has processed the queued command.
+        trainingMode = next;
+        trainingPendingUntil = Date.now() + PENDING_HOLD_MS;
+        renderTrainingChip();
         try {
             const res = await fetch(`${API}/bot/training-mode`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({enabled: next}),
             });
-            if (res.ok) {
-                trainingMode = next;
+            if (!res.ok) {
+                // Roll back on server error
+                trainingMode = !next;
+                trainingPendingUntil = 0;
                 renderTrainingChip();
             }
         } catch (e) {
             console.error('Training mode toggle failed:', e);
+            trainingMode = !next;
+            trainingPendingUntil = 0;
+            renderTrainingChip();
         }
     }
 
@@ -1218,18 +1243,25 @@
             ? 'REVERSE mode flips every BUY into SELL and every SELL into BUY before the trade is sent. Are you sure?'
             : null;
         if (warn && !confirm(warn)) return;
+        reverseMode = next;
+        reversePendingUntil = Date.now() + PENDING_HOLD_MS;
+        renderReverseChip();
         try {
             const res = await fetch(`${API}/bot/reverse-mode`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({enabled: next}),
             });
-            if (res.ok) {
-                reverseMode = next;
+            if (!res.ok) {
+                reverseMode = !next;
+                reversePendingUntil = 0;
                 renderReverseChip();
             }
         } catch (e) {
             console.error('Reverse mode toggle failed:', e);
+            reverseMode = !next;
+            reversePendingUntil = 0;
+            renderReverseChip();
         }
     }
 
@@ -1240,6 +1272,11 @@
             alert('Please enter a number >= 0');
             return;
         }
+        const previous = minTradePnl;
+        minTradePnl = value;
+        minPnlPendingUntil = Date.now() + PENDING_HOLD_MS;
+        renderMinPnlInput();
+        input.style.borderColor = 'var(--accent)';
         try {
             const res = await fetch(`${API}/bot/min-trade-pnl`, {
                 method: 'POST',
@@ -1249,9 +1286,20 @@
             if (res.ok) {
                 input.style.borderColor = 'var(--profit)';
                 setTimeout(() => { input.style.borderColor = ''; }, 1200);
+            } else {
+                minTradePnl = previous;
+                minPnlPendingUntil = 0;
+                renderMinPnlInput();
+                input.style.borderColor = 'var(--loss)';
+                setTimeout(() => { input.style.borderColor = ''; }, 1500);
             }
         } catch (e) {
             console.error('Min-pnl update failed:', e);
+            minTradePnl = previous;
+            minPnlPendingUntil = 0;
+            renderMinPnlInput();
+            input.style.borderColor = 'var(--loss)';
+            setTimeout(() => { input.style.borderColor = ''; }, 1500);
         }
     }
 
@@ -1269,24 +1317,42 @@
         btn.style.background = botPaused ? 'var(--profit)' : '';
         btn.style.color = botPaused ? '#0a0e17' : '';
 
-        // Sync training / reverse / min-pnl from /api/config (truth comes from bot)
-        const cfg = await fetchJSON(`${API}/config`);
-        if (cfg) {
-            const newTraining = (cfg.daily_loss_limit_enabled === false);
-            const newReverse = !!cfg.reverse_mode;
-            if (newTraining !== trainingMode) {
+        // Sync training / reverse / min-pnl state from the runtime status the
+        // bot writes to disk. /api/config is served by a separate subprocess
+        // with its own config object and goes stale, so we read the truth
+        // from /api/bot/control-status which reads bot_status.json.
+        // During a pending window (just after a click) we keep the optimistic
+        // UI state so the chip doesn't flicker before the bot processes the
+        // queued command.
+        const now = Date.now();
+        if (ctrl.daily_loss_limit_enabled !== undefined) {
+            const newTraining = (ctrl.daily_loss_limit_enabled === false);
+            if (newTraining === trainingMode) {
+                trainingPendingUntil = 0;
+            } else if (now >= trainingPendingUntil) {
                 trainingMode = newTraining;
                 renderTrainingChip();
             }
-            if (newReverse !== reverseMode) {
+        }
+        if (ctrl.reverse_mode !== undefined) {
+            const newReverse = !!ctrl.reverse_mode;
+            if (newReverse === reverseMode) {
+                reversePendingUntil = 0;
+            } else if (now >= reversePendingUntil) {
                 reverseMode = newReverse;
                 renderReverseChip();
             }
-            if (cfg.min_trade_pnl !== undefined) {
-                const input = document.getElementById('minPnlInput');
-                if (input && document.activeElement !== input) {
-                    input.value = Number(cfg.min_trade_pnl).toFixed(2);
+        }
+        if (ctrl.min_trade_pnl !== undefined) {
+            const serverMinPnl = Number(ctrl.min_trade_pnl);
+            const sameAsLocal = Math.abs(serverMinPnl - minTradePnl) < 0.000001;
+            if (!Number.isNaN(serverMinPnl)) {
+                if (sameAsLocal) {
+                    minPnlPendingUntil = 0;
+                } else if (now >= minPnlPendingUntil) {
+                    minTradePnl = serverMinPnl;
                 }
+                renderMinPnlInput();
             }
         }
     }
