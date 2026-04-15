@@ -33,12 +33,16 @@ class RiskManager:
             (bool, str) — (allowed, reason if not allowed)
         """
         # ─── Check daily loss limit ──────────────────────
-        daily_pnl = self.journal.get_daily_pnl()
-        daily_loss_limit = account_value * config.DAILY_LOSS_LIMIT
+        if config.DAILY_LOSS_LIMIT_ENABLED:
+            daily_pnl = self.journal.get_daily_pnl()
+            daily_loss_limit = account_value * config.DAILY_LOSS_LIMIT
 
-        if daily_pnl < -daily_loss_limit:
-            self.daily_loss_triggered = True
-            return False, f"Daily loss limit hit (${daily_pnl:.2f} < -${daily_loss_limit:.2f})"
+            if daily_pnl < -daily_loss_limit:
+                self.daily_loss_triggered = True
+                return False, f"Daily loss limit hit (${daily_pnl:.2f} < -${daily_loss_limit:.2f})"
+        else:
+            # Training mode: daily loss limit disabled, clear any prior trigger
+            self.daily_loss_triggered = False
 
         # ─── Check max open positions ────────────────────
         open_trades = self.journal.get_open_trades()

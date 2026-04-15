@@ -1558,6 +1558,21 @@ class SmartTraderBot:
 
     def _execute_signal(self, instrument, signal_data):
         direction = signal_data["signal"]
+
+        # ─── Reverse mode: flip every signal before execution ──────
+        # When REVERSE_MODE is on, a BUY becomes a SELL and vice versa.
+        # This runs after the strategy has decided but before anything
+        # is sent to the broker, journal, or logs — so the rest of the
+        # pipeline is completely unaware the flip happened.
+        if config.REVERSE_MODE and direction in (Signal.BUY, Signal.SELL):
+            original = direction
+            direction = Signal.SELL if direction == Signal.BUY else Signal.BUY
+            logger.info(f"  🔄 REVERSE MODE: flipped {original} -> {direction} on {instrument}")
+            self._log_activity(
+                f"REVERSE: flipped {original} -> {direction} on {instrument}",
+                level="signal",
+            )
+
         price = signal_data["price"]
         atr = signal_data.get("atr", 0)
         regime = signal_data.get("regime", MarketRegime.TRENDING)

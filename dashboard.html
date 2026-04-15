@@ -381,6 +381,55 @@
             border-color: var(--warning);
         }
 
+        /* ─── Toggle switches ───────────────────── */
+        .toggle-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            background: var(--bg-secondary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            cursor: pointer;
+            color: var(--text-secondary);
+            transition: all 0.15s ease;
+            user-select: none;
+        }
+        .toggle-chip:hover { border-color: var(--accent); color: var(--text-primary); }
+        .toggle-chip.on {
+            background: var(--profit);
+            color: #0a0e17;
+            border-color: var(--profit);
+            font-weight: 600;
+        }
+        .toggle-chip.reverse-on {
+            background: #e91e63;
+            color: #fff;
+            border-color: #e91e63;
+            font-weight: 600;
+        }
+        .toggle-chip .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--text-muted);
+        }
+        .toggle-chip.on .dot { background: #0a0e17; }
+        .toggle-chip.reverse-on .dot { background: #fff; }
+        .pnl-input {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            width: 70px;
+        }
+        .pnl-input:focus { border-color: var(--accent); outline: none; }
+
         /* ─── Activity Log ──────────────────────── */
         .activity-log-container {
             max-height: 250px;
@@ -462,6 +511,21 @@
                 <option value="0.03">3% risk</option>
             </select>
             <button class="btn btn-accent" id="applyBtn" onclick="applyCustomSettings()" style="display:none;">Apply</button>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
+            <label style="font-size:13px;color:var(--text-secondary);">Training Tools:</label>
+            <div class="toggle-chip" id="trainingChip" onclick="toggleTrainingMode()" title="When ON, the daily loss limit is disabled so the bot can keep trading for training.">
+                <span class="dot"></span>
+                <span id="trainingChipLabel">Training Mode: OFF</span>
+            </div>
+            <div class="toggle-chip" id="reverseChip" onclick="toggleReverseMode()" title="When ON, every BUY becomes a SELL and every SELL becomes a BUY right before execution.">
+                <span class="dot"></span>
+                <span id="reverseChipLabel">Reverse: OFF</span>
+            </div>
+            <label style="font-size:13px;color:var(--text-secondary);margin-left:8px;">Min $/trade:</label>
+            <input type="number" id="minPnlInput" class="pnl-input" step="0.25" min="0" value="1.00" />
+            <button class="btn btn-outline" onclick="applyMinPnl()" style="padding:6px 12px;font-size:12px;">Set</button>
+            <span style="font-size:11px;color:var(--text-muted);margin-left:4px;">Trades below this are ignored in win-rate stats.</span>
         </div>
     </div>
 
@@ -1112,6 +1176,85 @@
         }
     }
 
+    // ─── Training / Reverse / Min-PnL toggles ────────
+
+    let trainingMode = false;  // ON = daily loss limit disabled
+    let reverseMode = false;
+
+    function renderTrainingChip() {
+        const chip = document.getElementById('trainingChip');
+        const label = document.getElementById('trainingChipLabel');
+        chip.classList.toggle('on', trainingMode);
+        label.textContent = trainingMode ? 'Training Mode: ON' : 'Training Mode: OFF';
+    }
+
+    function renderReverseChip() {
+        const chip = document.getElementById('reverseChip');
+        const label = document.getElementById('reverseChipLabel');
+        chip.classList.toggle('reverse-on', reverseMode);
+        label.textContent = reverseMode ? 'Reverse: ON' : 'Reverse: OFF';
+    }
+
+    async function toggleTrainingMode() {
+        const next = !trainingMode;
+        try {
+            const res = await fetch(`${API}/bot/training-mode`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({enabled: next}),
+            });
+            if (res.ok) {
+                trainingMode = next;
+                renderTrainingChip();
+            }
+        } catch (e) {
+            console.error('Training mode toggle failed:', e);
+        }
+    }
+
+    async function toggleReverseMode() {
+        const next = !reverseMode;
+        const warn = next
+            ? 'REVERSE mode flips every BUY into SELL and every SELL into BUY before the trade is sent. Are you sure?'
+            : null;
+        if (warn && !confirm(warn)) return;
+        try {
+            const res = await fetch(`${API}/bot/reverse-mode`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({enabled: next}),
+            });
+            if (res.ok) {
+                reverseMode = next;
+                renderReverseChip();
+            }
+        } catch (e) {
+            console.error('Reverse mode toggle failed:', e);
+        }
+    }
+
+    async function applyMinPnl() {
+        const input = document.getElementById('minPnlInput');
+        const value = parseFloat(input.value);
+        if (isNaN(value) || value < 0) {
+            alert('Please enter a number >= 0');
+            return;
+        }
+        try {
+            const res = await fetch(`${API}/bot/min-trade-pnl`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({value: value}),
+            });
+            if (res.ok) {
+                input.style.borderColor = 'var(--profit)';
+                setTimeout(() => { input.style.borderColor = ''; }, 1200);
+            }
+        } catch (e) {
+            console.error('Min-pnl update failed:', e);
+        }
+    }
+
     async function updateControlPanel() {
         const ctrl = await fetchJSON(`${API}/bot/control-status`);
         if (!ctrl) return;
@@ -1125,6 +1268,27 @@
         btn.textContent = botPaused ? `Resume (${profileLabel})` : 'Pause';
         btn.style.background = botPaused ? 'var(--profit)' : '';
         btn.style.color = botPaused ? '#0a0e17' : '';
+
+        // Sync training / reverse / min-pnl from /api/config (truth comes from bot)
+        const cfg = await fetchJSON(`${API}/config`);
+        if (cfg) {
+            const newTraining = (cfg.daily_loss_limit_enabled === false);
+            const newReverse = !!cfg.reverse_mode;
+            if (newTraining !== trainingMode) {
+                trainingMode = newTraining;
+                renderTrainingChip();
+            }
+            if (newReverse !== reverseMode) {
+                reverseMode = newReverse;
+                renderReverseChip();
+            }
+            if (cfg.min_trade_pnl !== undefined) {
+                const input = document.getElementById('minPnlInput');
+                if (input && document.activeElement !== input) {
+                    input.value = Number(cfg.min_trade_pnl).toFixed(2);
+                }
+            }
+        }
     }
 
     // ─── Activity Log ───────────────────────────

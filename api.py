@@ -267,6 +267,7 @@ async def update_settings(body: dict):
         "daily_loss_limit", "stop_loss_atr_mult", "take_profit_atr_mult",
         "spread_limit_mult", "strategies", "fast_ema", "slow_ema",
         "breakout_lookback", "news_filter_enabled", "learning_enabled",
+        "daily_loss_limit_enabled", "min_trade_pnl", "reverse_mode",
     }
     settings = {}
     for key, value in body.items():
@@ -297,6 +298,38 @@ async def close_all_positions():
     """Close all open positions immediately."""
     write_command("close_all")
     return {"status": "ok", "message": "Close-all command queued."}
+
+
+@app.post("/api/bot/training-mode")
+async def set_training_mode(body: dict):
+    """Toggle the daily loss limit off for training, or back on for live-style runs."""
+    enabled = bool(body.get("enabled", True))
+    # training_mode ON  => daily loss limit DISABLED
+    # training_mode OFF => daily loss limit ENABLED
+    write_command("update_settings", {"DAILY_LOSS_LIMIT_ENABLED": (not enabled)})
+    label = "ON (daily loss limit disabled)" if enabled else "OFF (daily loss limit enabled)"
+    return {"status": "ok", "message": f"Training mode {label}"}
+
+
+@app.post("/api/bot/reverse-mode")
+async def set_reverse_mode(body: dict):
+    """Toggle reverse mode — flips every BUY/SELL before execution."""
+    enabled = bool(body.get("enabled", False))
+    write_command("update_settings", {"REVERSE_MODE": enabled})
+    return {"status": "ok", "message": f"Reverse mode {'ON' if enabled else 'OFF'}"}
+
+
+@app.post("/api/bot/min-trade-pnl")
+async def set_min_trade_pnl(body: dict):
+    """Set the minimum |P&L| for a trade to count as a win or loss."""
+    try:
+        value = float(body.get("value", 1.0))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="value must be a number")
+    if value < 0:
+        raise HTTPException(status_code=400, detail="value must be >= 0")
+    write_command("update_settings", {"MIN_TRADE_PNL": value})
+    return {"status": "ok", "message": f"Minimum trade P&L set to ${value:.2f}"}
 
 
 @app.get("/api/bot/activity-log")

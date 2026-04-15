@@ -94,6 +94,9 @@ class Config:
     STOP_LOSS_ATR_MULT = float(os.getenv("STOP_LOSS_ATR_MULT", 1.5))
     TAKE_PROFIT_ATR_MULT = float(os.getenv("TAKE_PROFIT_ATR_MULT", 3.0))
     DAILY_LOSS_LIMIT = float(os.getenv("DAILY_LOSS_LIMIT", 0.05))
+    DAILY_LOSS_LIMIT_ENABLED = os.getenv("DAILY_LOSS_LIMIT_ENABLED", "true").lower() == "true"
+    MIN_TRADE_PNL = float(os.getenv("MIN_TRADE_PNL", 1.0))
+    REVERSE_MODE = os.getenv("REVERSE_MODE", "false").lower() == "true"
     SCALE_IN_ENABLED = os.getenv("SCALE_IN_ENABLED", "true").lower() == "true"
     SCALE_IN_MAX_ADDS = int(os.getenv("SCALE_IN_MAX_ADDS", 2))
     SCALE_IN_SIZE_FRACTION = float(os.getenv("SCALE_IN_SIZE_FRACTION", 0.5))
@@ -257,6 +260,10 @@ class Config:
             "stop_loss_atr_mult": self.STOP_LOSS_ATR_MULT,
             "take_profit_atr_mult": self.TAKE_PROFIT_ATR_MULT,
             "spread_limit_mult": self.SPREAD_LIMIT_MULT,
+            "daily_loss_limit": self.DAILY_LOSS_LIMIT,
+            "daily_loss_limit_enabled": self.DAILY_LOSS_LIMIT_ENABLED,
+            "min_trade_pnl": self.MIN_TRADE_PNL,
+            "reverse_mode": self.REVERSE_MODE,
             "news_filter": self.NEWS_FILTER_ENABLED,
             "learning_enabled": self.LEARNING_ENABLED,
             "has_claude": self.has_claude,

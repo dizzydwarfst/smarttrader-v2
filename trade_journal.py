@@ -362,13 +362,19 @@ class TradeJournal:
         return trades
 
     def _summarize_trades(self, trades):
-        """Calculate performance metrics for a list of closed trades."""
+        """Calculate performance metrics for a list of closed trades.
+
+        Trades with |pnl| < config.MIN_TRADE_PNL are treated as 'noise' and
+        excluded from wins/losses/win-rate/profit-factor calculations. They
+        still contribute to total P&L so the books stay honest.
+        """
         if not trades:
             return {
                 "total": 0,
                 "trades": 0,
                 "wins": 0,
                 "losses": 0,
+                "noise": 0,
                 "win_rate": 0,
                 "avg_pnl": 0,
                 "total_pnl": 0,
@@ -379,10 +385,15 @@ class TradeJournal:
                 "sharpe_ratio": 0,
                 "sortino_ratio": 0,
                 "last_trade_at": None,
+                "min_trade_pnl": config.MIN_TRADE_PNL,
             }
 
-        wins = [t for t in trades if (t["pnl"] or 0) > 0]
-        losses = [t for t in trades if (t["pnl"] or 0) <= 0]
+        min_pnl = config.MIN_TRADE_PNL
+        # "Meaningful" trades = |pnl| >= min_pnl. Noise trades are skipped for win/loss.
+        meaningful = [t for t in trades if abs(t["pnl"] or 0) >= min_pnl]
+        noise_count = len(trades) - len(meaningful)
+        wins = [t for t in meaningful if (t["pnl"] or 0) > 0]
+        losses = [t for t in meaningful if (t["pnl"] or 0) < 0]
         total_wins = sum(t["pnl"] or 0 for t in wins)
         total_losses = abs(sum(t["pnl"] or 0 for t in losses))
 
@@ -413,12 +424,16 @@ class TradeJournal:
             sharpe = 0
             sortino = 0
 
+        meaningful_count = len(wins) + len(losses)
+        win_rate = (len(wins) / meaningful_count) if meaningful_count > 0 else 0
+
         return {
             "total": len(trades),
             "trades": len(trades),
             "wins": len(wins),
             "losses": len(losses),
-            "win_rate": len(wins) / len(trades),
+            "noise": noise_count,
+            "win_rate": win_rate,
             "avg_pnl": avg_pnl,
             "total_pnl": sum(pnl_values),
             "avg_hold_mins": sum(t["hold_duration_mins"] or 0 for t in trades) / len(trades),
@@ -428,6 +443,7 @@ class TradeJournal:
             "sharpe_ratio": round(sharpe, 3),
             "sortino_ratio": round(sortino, 3),
             "last_trade_at": max((t["timestamp"] for t in trades), default=None),
+            "min_trade_pnl": min_pnl,
         }
 
     def get_trade_stats(self, days=14):
