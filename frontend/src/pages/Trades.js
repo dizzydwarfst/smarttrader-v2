@@ -1,7 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { fetchJSON, formatMoney, formatPercent, formatProfitFactor } from '../lib/api';
 import ControlPanel from '../components/ControlPanel';
-import { ArrowLeftRight } from 'lucide-react';
+
+const GOLD = '#F59E0B';
+const GREEN = '#10B981';
+const RED = '#EF4444';
+const SURFACE = '#151A24';
+const BORDER = '#2A3548';
+const TEXT = '#F8FAFC';
+const TEXT_SECONDARY = '#94A3B8';
+const TEXT_MUTED = '#64748B';
 
 export default function Trades() {
   const [recentTrades, setRecentTrades] = useState([]);
@@ -38,45 +46,55 @@ export default function Trades() {
   return (
     <div className="space-y-7 animate-fade-in" data-testid="trades-page">
       <div>
-        <h1 className="text-[28px] font-bold" style={{ color: '#111827' }}>Trades</h1>
-        <p className="text-[15px] mt-1" style={{ color: '#6B7280' }}>Transaction history, open positions, and strategy performance</p>
+        <h1 className="text-[32px] font-black tracking-tight" style={{ color: TEXT, fontFamily: 'Outfit, sans-serif' }}>Trades</h1>
+        <p className="text-[15px] mt-1" style={{ color: TEXT_SECONDARY }}>Transaction history, open positions, and strategy performance</p>
       </div>
 
       {/* Tabs */}
       <div className="flex gap-2 flex-wrap">
-        {tabs.map(t => (
-          <button key={t.id} data-testid={`tab-${t.id}`} onClick={() => setTab(t.id)}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-[14px] font-medium transition-all"
-            style={{ background: tab === t.id ? '#2563EB' : '#fff', color: tab === t.id ? '#fff' : '#6B7280', border: `1px solid ${tab === t.id ? '#2563EB' : '#E5E7EB'}` }}>
-            {t.label}
-            <span className="text-[12px] font-mono px-1.5 py-0.5 rounded-lg"
-              style={{ background: tab === t.id ? 'rgba(255,255,255,0.2)' : '#F0F2F5' }}>{t.count}</span>
-          </button>
-        ))}
+        {tabs.map(t => {
+          const active = tab === t.id;
+          return (
+            <button key={t.id} data-testid={`tab-${t.id}`} onClick={() => setTab(t.id)}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-[14px] font-semibold transition-all"
+              style={{
+                background: active ? GOLD : SURFACE,
+                color: active ? '#0B0E14' : TEXT_SECONDARY,
+                border: `1px solid ${active ? GOLD : BORDER}`
+              }}
+              onMouseEnter={(e) => { if (!active) { e.currentTarget.style.borderColor = GOLD; e.currentTarget.style.color = TEXT; } }}
+              onMouseLeave={(e) => { if (!active) { e.currentTarget.style.borderColor = BORDER; e.currentTarget.style.color = TEXT_SECONDARY; } }}>
+              {t.label}
+              <span className="text-[12px] font-mono px-1.5 py-0.5 rounded"
+                style={{ background: active ? 'rgba(11,14,20,0.25)' : '#1E2532', color: active ? '#0B0E14' : TEXT_SECONDARY }}>{t.count}</span>
+            </button>
+          );
+        })}
       </div>
 
-      {/* Content */}
       {tab === 'recent' && (
         <Card>
           {recentTrades.length === 0 ? <Empty text="No recent trades yet" /> : (
             <div className="overflow-x-auto">
               <table className="w-full text-[14px]">
-                <thead><tr style={{ borderBottom: '2px solid #F0F2F5' }}>
+                <thead><tr style={{ borderBottom: `1px solid ${BORDER}` }}>
                   {['Time', 'Instrument', 'Direction', 'P&L', 'Exit Reason', 'Strategy', 'Status'].map(h => (
-                    <th key={h} className="text-left py-3.5 px-4 font-medium" style={{ color: '#9CA3AF' }}>{h}</th>
+                    <th key={h} className="text-left py-3.5 px-4 font-semibold uppercase tracking-widest" style={{ color: TEXT_MUTED, fontSize: 11 }}>{h}</th>
                   ))}
                 </tr></thead>
                 <tbody>
                   {recentTrades.slice(0, 25).map((t, i) => {
                     const pnl = t.pnl || 0;
                     return (
-                      <tr key={i} className="hover:bg-gray-50 transition-colors" style={{ borderBottom: '1px solid #F0F2F5' }}>
-                        <td className="py-3.5 px-4 font-mono" style={{ color: '#6B7280' }}>{new Date(t.closed_at || t.timestamp).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
-                        <td className="py-3.5 px-4 font-mono font-bold" style={{ color: '#111827' }}>{t.instrument}</td>
+                      <tr key={i} className="transition-colors" style={{ borderBottom: `1px solid #1E2532` }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = '#1E2532'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
+                        <td className="py-3.5 px-4 font-mono" style={{ color: TEXT_SECONDARY }}>{new Date(t.closed_at || t.timestamp).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
+                        <td className="py-3.5 px-4 font-mono font-bold" style={{ color: TEXT }}>{t.instrument}</td>
                         <td className="py-3.5 px-4"><DirPill dir={t.direction} /></td>
-                        <td className="py-3.5 px-4 font-mono font-bold" style={{ color: pnl >= 0 ? '#059669' : '#DC2626' }}>{formatMoney(pnl)}</td>
-                        <td className="py-3.5 px-4" style={{ color: '#6B7280' }}>{t.exit_reason || '--'}</td>
-                        <td className="py-3.5 px-4 font-mono" style={{ color: '#6B7280' }}>{t.strategy_name || '--'}</td>
+                        <td className="py-3.5 px-4 font-mono font-bold" style={{ color: pnl >= 0 ? GREEN : RED }}>{formatMoney(pnl)}</td>
+                        <td className="py-3.5 px-4" style={{ color: TEXT_SECONDARY }}>{t.exit_reason || '--'}</td>
+                        <td className="py-3.5 px-4 font-mono" style={{ color: TEXT_SECONDARY }}>{t.strategy_name || '--'}</td>
                         <td className="py-3.5 px-4"><StatusPill reason={t.exit_reason} pnl={pnl} /></td>
                       </tr>
                     );
@@ -93,20 +111,22 @@ export default function Trades() {
           {openTrades.length === 0 ? <Empty text="No open positions — bot is watching for signals" /> : (
             <div className="overflow-x-auto">
               <table className="w-full text-[14px]">
-                <thead><tr style={{ borderBottom: '2px solid #F0F2F5' }}>
+                <thead><tr style={{ borderBottom: `1px solid ${BORDER}` }}>
                   {['Instrument', 'Direction', 'Entry Price', 'Stop Loss', 'Take Profit', 'AI Action'].map(h => (
-                    <th key={h} className="text-left py-3.5 px-4 font-medium" style={{ color: '#9CA3AF' }}>{h}</th>
+                    <th key={h} className="text-left py-3.5 px-4 font-semibold uppercase tracking-widest" style={{ color: TEXT_MUTED, fontSize: 11 }}>{h}</th>
                   ))}
                 </tr></thead>
                 <tbody>
                   {openTrades.map((t, i) => (
-                    <tr key={i} className="hover:bg-gray-50" style={{ borderBottom: '1px solid #F0F2F5' }}>
-                      <td className="py-3.5 px-4 font-mono font-bold" style={{ color: '#111827' }}>{t.instrument}</td>
+                    <tr key={i} className="transition-colors" style={{ borderBottom: `1px solid #1E2532` }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = '#1E2532'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
+                      <td className="py-3.5 px-4 font-mono font-bold" style={{ color: TEXT }}>{t.instrument}</td>
                       <td className="py-3.5 px-4"><DirPill dir={t.direction} /></td>
-                      <td className="py-3.5 px-4 font-mono" style={{ color: '#374151' }}>{Number(t.entry_price).toFixed(3)}</td>
-                      <td className="py-3.5 px-4 font-mono" style={{ color: '#DC2626' }}>{Number(t.stop_loss).toFixed(3)}</td>
-                      <td className="py-3.5 px-4 font-mono" style={{ color: '#059669' }}>{Number(t.take_profit).toFixed(3)}</td>
-                      <td className="py-3.5 px-4" style={{ color: '#6B7280' }}>{t.ai_action || '--'}</td>
+                      <td className="py-3.5 px-4 font-mono" style={{ color: TEXT_SECONDARY }}>{Number(t.entry_price).toFixed(3)}</td>
+                      <td className="py-3.5 px-4 font-mono" style={{ color: RED }}>{Number(t.stop_loss).toFixed(3)}</td>
+                      <td className="py-3.5 px-4 font-mono" style={{ color: GREEN }}>{Number(t.take_profit).toFixed(3)}</td>
+                      <td className="py-3.5 px-4" style={{ color: TEXT_SECONDARY }}>{t.ai_action || '--'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -121,22 +141,24 @@ export default function Trades() {
           {(!scorecard?.strategies || scorecard.strategies.length === 0) ? <Empty text="No strategy data yet" /> : (
             <div className="overflow-x-auto">
               <table className="w-full text-[14px]">
-                <thead><tr style={{ borderBottom: '2px solid #F0F2F5' }}>
+                <thead><tr style={{ borderBottom: `1px solid ${BORDER}` }}>
                   {['Strategy', 'Trades', 'Win Rate', 'Profit Factor', 'Total P&L', 'Status'].map(h => (
-                    <th key={h} className="text-left py-3.5 px-4 font-medium" style={{ color: '#9CA3AF' }}>{h}</th>
+                    <th key={h} className="text-left py-3.5 px-4 font-semibold uppercase tracking-widest" style={{ color: TEXT_MUTED, fontSize: 11 }}>{h}</th>
                   ))}
                 </tr></thead>
                 <tbody>
                   {scorecard.strategies.map((r, i) => (
-                    <tr key={i} className="hover:bg-gray-50" style={{ borderBottom: '1px solid #F0F2F5' }}>
-                      <td className="py-3.5 px-4 font-mono font-bold" style={{ color: '#111827' }}>{r.strategy_name}</td>
-                      <td className="py-3.5 px-4 font-mono" style={{ color: '#6B7280' }}>{r.trades}</td>
-                      <td className="py-3.5 px-4 font-mono" style={{ color: '#D97706' }}>{formatPercent(r.win_rate)}</td>
-                      <td className="py-3.5 px-4 font-mono" style={{ color: '#374151' }}>{formatProfitFactor(r.profit_factor)}</td>
-                      <td className="py-3.5 px-4 font-mono font-bold" style={{ color: r.total_pnl >= 0 ? '#059669' : '#DC2626' }}>{formatMoney(r.total_pnl)}</td>
+                    <tr key={i} className="transition-colors" style={{ borderBottom: `1px solid #1E2532` }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = '#1E2532'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
+                      <td className="py-3.5 px-4 font-mono font-bold" style={{ color: TEXT }}>{r.strategy_name}</td>
+                      <td className="py-3.5 px-4 font-mono" style={{ color: TEXT_SECONDARY }}>{r.trades}</td>
+                      <td className="py-3.5 px-4 font-mono" style={{ color: GOLD }}>{formatPercent(r.win_rate)}</td>
+                      <td className="py-3.5 px-4 font-mono" style={{ color: TEXT }}>{formatProfitFactor(r.profit_factor)}</td>
+                      <td className="py-3.5 px-4 font-mono font-bold" style={{ color: r.total_pnl >= 0 ? GREEN : RED }}>{formatMoney(r.total_pnl)}</td>
                       <td className="py-3.5 px-4">
                         <span className="px-3 py-1 rounded-full text-[12px] font-bold"
-                          style={{ background: r.eligible ? '#ECFDF5' : '#F0F2F5', color: r.eligible ? '#059669' : '#9CA3AF' }}>
+                          style={{ background: r.eligible ? 'rgba(16,185,129,0.12)' : '#1E2532', color: r.eligible ? GREEN : TEXT_SECONDARY, border: `1px solid ${r.eligible ? 'rgba(16,185,129,0.3)' : BORDER}` }}>
                           {r.eligible ? 'Active' : 'Learning'}
                         </span>
                       </td>
@@ -152,12 +174,13 @@ export default function Trades() {
       {tab === 'activity' && (
         <Card>
           {(!activityLog || activityLog.length === 0) ? <Empty text="No activity logged yet" /> : (
-            <div className="max-h-[500px] overflow-y-auto font-mono text-[13px] space-y-1 p-4 rounded-xl" style={{ background: '#F9FAFB' }}>
+            <div className="max-h-[500px] overflow-y-auto font-mono text-[13px] space-y-1 p-4 rounded-lg"
+              style={{ background: '#000000', border: `1px solid #1E2532` }}>
               {[...activityLog].reverse().map((e, i) => {
-                const colors = { info: '#9CA3AF', signal: '#2563EB', blocked: '#D97706', trade: '#059669' };
+                const colors = { info: '#94A3B8', signal: '#3B82F6', blocked: GOLD, trade: GREEN };
                 return (
-                  <div key={i} className="py-1.5 pl-4 border-l-3" style={{ borderLeft: `3px solid ${colors[e.level] || '#D1D5DB'}`, color: colors[e.level] || '#6B7280' }}>
-                    <span style={{ color: '#9CA3AF', marginRight: 10 }}>{e.time}</span>{e.message}
+                  <div key={i} className="py-1.5 pl-4" style={{ borderLeft: `3px solid ${colors[e.level] || GOLD}`, color: colors[e.level] || GOLD }}>
+                    <span style={{ color: '#475569', marginRight: 10 }}>{e.time}</span>{e.message}
                   </div>
                 );
               })}
@@ -166,25 +189,26 @@ export default function Trades() {
         </Card>
       )}
 
-      {/* Control Panel at bottom */}
       <ControlPanel controlStatus={controlStatus} onRefresh={fetchData} />
     </div>
   );
 }
 
 function Card({ children }) {
-  return <div className="rounded-2xl p-6 shadow-sm" style={{ background: '#fff', border: '1px solid #E5E7EB' }}>{children}</div>;
+  return <div className="rounded-xl p-6" style={{ background: SURFACE, border: `1px solid ${BORDER}` }}>{children}</div>;
 }
 function Empty({ text }) {
-  return <p className="text-[15px] text-center py-16" style={{ color: '#9CA3AF' }}>{text}</p>;
+  return <p className="text-[15px] text-center py-16" style={{ color: TEXT_MUTED }}>{text}</p>;
 }
 function DirPill({ dir }) {
   const buy = dir?.toUpperCase() === 'BUY';
-  return <span className="px-3 py-1 rounded-full text-[12px] font-bold" style={{ background: buy ? '#ECFDF5' : '#FEF2F2', color: buy ? '#059669' : '#DC2626' }}>{dir}</span>;
+  return <span className="px-3 py-1 rounded-full text-[12px] font-bold"
+    style={{ background: buy ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)', color: buy ? GREEN : RED, border: `1px solid ${buy ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}` }}>{dir}</span>;
 }
 function StatusPill({ reason, pnl }) {
-  if (reason === 'take_profit') return <span className="px-3 py-1 rounded-full text-[12px] font-bold" style={{ background: '#ECFDF5', color: '#059669' }}>Completed</span>;
-  if (reason === 'stop_loss') return <span className="px-3 py-1 rounded-full text-[12px] font-bold" style={{ background: '#FEF2F2', color: '#DC2626' }}>Stopped</span>;
-  if (pnl >= 0) return <span className="px-3 py-1 rounded-full text-[12px] font-bold" style={{ background: '#EFF6FF', color: '#2563EB' }}>Closed</span>;
-  return <span className="px-3 py-1 rounded-full text-[12px] font-bold" style={{ background: '#FFFBEB', color: '#D97706' }}>Pending</span>;
+  const base = "px-3 py-1 rounded-full text-[12px] font-bold";
+  if (reason === 'take_profit') return <span className={base} style={{ background: 'rgba(16,185,129,0.12)', color: GREEN, border: `1px solid rgba(16,185,129,0.3)` }}>Completed</span>;
+  if (reason === 'stop_loss') return <span className={base} style={{ background: 'rgba(239,68,68,0.12)', color: RED, border: `1px solid rgba(239,68,68,0.3)` }}>Stopped</span>;
+  if (pnl >= 0) return <span className={base} style={{ background: 'rgba(245,158,11,0.12)', color: GOLD, border: `1px solid rgba(245,158,11,0.3)` }}>Closed</span>;
+  return <span className={base} style={{ background: '#1E2532', color: TEXT_SECONDARY, border: `1px solid ${BORDER}` }}>Pending</span>;
 }

@@ -3,9 +3,18 @@ import { fetchJSON } from '../lib/api';
 import AiAdvisor from '../components/AiAdvisor';
 import NewsFilter from '../components/NewsFilter';
 import LearningMemory from '../components/LearningMemory';
-import { Bot, Newspaper, Brain, Shield, Cpu, Zap } from 'lucide-react';
+import { Bot, Brain, Shield, Cpu, Zap } from 'lucide-react';
 
-const GOLD = '#2563EB';
+const GOLD = '#F59E0B';
+const GREEN = '#10B981';
+const RED = '#EF4444';
+const SURFACE = '#151A24';
+const SURFACE_ALT = '#1E2532';
+const BG = '#0B0E14';
+const BORDER = '#2A3548';
+const TEXT = '#F8FAFC';
+const TEXT_SECONDARY = '#94A3B8';
+const TEXT_MUTED = '#64748B';
 
 export default function AiHub() {
   const [news, setNews] = useState(null);
@@ -37,17 +46,15 @@ export default function AiHub() {
 
   return (
     <div className="space-y-6 animate-fade-in" data-testid="ai-hub-page">
-      {/* Header */}
       <div>
-        <h2 className="text-2xl font-bold tracking-tight" style={{ fontFamily: 'Roboto, sans-serif', color: '#111827' }}>
+        <h2 className="text-[22px] font-bold tracking-tight" style={{ fontFamily: 'Outfit, sans-serif', color: TEXT }}>
           AI & News Hub
         </h2>
-        <p className="text-sm mt-1" style={{ color: '#6B7280' }}>
+        <p className="text-[13px] mt-1" style={{ color: TEXT_SECONDARY }}>
           AI trading advisor, market news, and bot intelligence
         </p>
       </div>
 
-      {/* AI Status Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <AiStatusCard
           icon={Cpu}
@@ -71,38 +78,34 @@ export default function AiHub() {
           icon={Brain}
           label="Learning"
           value={aiStatus?.ai_learning_enabled ? 'ACTIVE' : 'DISABLED'}
-          valueColor={aiStatus?.ai_learning_enabled ? '#059669' : '#DC2626'}
+          valueColor={aiStatus?.ai_learning_enabled ? GREEN : RED}
           sub={`${learning.length} param changes recorded`}
         />
       </div>
 
-      {/* Main content: AI Advisor full width */}
-      <div className="rounded-2xl border p-5" style={{ background: '#FFFFFF', borderColor: '#E5E7EB' }}>
+      <div className="rounded-xl p-5" style={{ background: SURFACE, border: `1px solid ${BORDER}` }}>
         <div className="flex items-center gap-2 mb-4">
           <Bot className="w-5 h-5" style={{ color: GOLD }} />
-          <h3 className="text-base font-bold" style={{ fontFamily: 'Roboto, sans-serif', color: '#111827' }}>AI Trading Advisor</h3>
+          <h3 className="text-[15px] font-bold" style={{ fontFamily: 'Outfit, sans-serif', color: TEXT }}>AI Trading Advisor</h3>
         </div>
         <AiAdvisor />
       </div>
 
-      {/* News + Learning side by side */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <NewsFilter news={news} />
         <LearningMemory changes={learning} />
       </div>
 
-      {/* Memory Snapshot + Strategy Library */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Memory Snapshot */}
         <Card title="Bot Memory Snapshot" icon={Brain} testId="memory-snapshot">
           {!memorySnapshot ? (
-            <p className="text-xs" style={{ color: '#9CA3AF' }}>No memory snapshot available</p>
+            <p className="text-[12px]" style={{ color: TEXT_MUTED }}>No memory snapshot available</p>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-3">
               {memorySnapshot.soul_summary && (
                 <div>
-                  <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: GOLD }}>Soul</span>
-                  <p className="text-xs mt-1 whitespace-pre-wrap" style={{ color: '#6B7280' }}>
+                  <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: GOLD }}>Soul</span>
+                  <p className="text-[12px] mt-1 whitespace-pre-wrap leading-relaxed" style={{ color: TEXT_SECONDARY }}>
                     {typeof memorySnapshot.soul_summary === 'string'
                       ? memorySnapshot.soul_summary.slice(0, 500)
                       : JSON.stringify(memorySnapshot.soul_summary).slice(0, 500)}
@@ -110,9 +113,9 @@ export default function AiHub() {
                 </div>
               )}
               {memorySnapshot.skills_summary && (
-                <div className="pt-2 border-t" style={{ borderColor: '#E5E7EB' }}>
-                  <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#2563EB' }}>Skills</span>
-                  <p className="text-xs mt-1 whitespace-pre-wrap" style={{ color: '#6B7280' }}>
+                <div className="pt-2 border-t" style={{ borderColor: BORDER }}>
+                  <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: '#60A5FA' }}>Skills</span>
+                  <p className="text-[12px] mt-1 whitespace-pre-wrap leading-relaxed" style={{ color: TEXT_SECONDARY }}>
                     {typeof memorySnapshot.skills_summary === 'string'
                       ? memorySnapshot.skills_summary.slice(0, 500)
                       : JSON.stringify(memorySnapshot.skills_summary).slice(0, 500)}
@@ -120,33 +123,36 @@ export default function AiHub() {
                 </div>
               )}
               {!memorySnapshot.soul_summary && !memorySnapshot.skills_summary && (
-                <p className="text-xs" style={{ color: '#9CA3AF' }}>Memory snapshot is empty</p>
+                <p className="text-[12px]" style={{ color: TEXT_MUTED }}>Memory snapshot is empty</p>
               )}
             </div>
           )}
         </Card>
 
-        {/* Strategy Library */}
         <Card title="Strategy Library" icon={Zap} testId="strategy-library">
           {!stratLib ? (
-            <p className="text-xs" style={{ color: '#9CA3AF' }}>No strategy library data</p>
+            <p className="text-[12px]" style={{ color: TEXT_MUTED }}>No strategy library data</p>
           ) : (
             <div className="max-h-72 overflow-y-auto space-y-2">
               {stratLib.strategies && Array.isArray(stratLib.strategies) ? (
                 stratLib.strategies.map((s, i) => (
-                  <div key={i} className="p-3 rounded-xl" style={{ background: '#F0F2F5' }}>
+                  <div key={i} className="p-3 rounded-lg" style={{ background: BG, border: `1px solid ${BORDER}` }}>
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-mono font-semibold" style={{ color: GOLD }}>{s.name || s.strategy_name || `Strategy ${i + 1}`}</span>
-                      <span className="text-xs font-mono" style={{ color: s.enabled !== false ? '#059669' : '#DC2626' }}>
+                      <span className="text-[12px] font-mono font-semibold" style={{ color: GOLD }}>{s.name || s.strategy_name || `Strategy ${i + 1}`}</span>
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full" style={{
+                        background: s.enabled !== false ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)',
+                        color: s.enabled !== false ? GREEN : RED,
+                        border: `1px solid ${s.enabled !== false ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}`,
+                      }}>
                         {s.enabled !== false ? 'Active' : 'Disabled'}
                       </span>
                     </div>
-                    {s.description && <p className="text-xs mt-1" style={{ color: '#6B7280' }}>{s.description}</p>}
+                    {s.description && <p className="text-[11px] mt-1" style={{ color: TEXT_SECONDARY }}>{s.description}</p>}
                   </div>
                 ))
               ) : (
-                <div className="text-xs" style={{ color: '#6B7280' }}>
-                  <pre className="whitespace-pre-wrap font-mono">
+                <div className="text-[11px]" style={{ color: TEXT_SECONDARY }}>
+                  <pre className="whitespace-pre-wrap font-mono p-3 rounded-lg" style={{ background: BG, border: `1px solid ${BORDER}`, color: TEXT_SECONDARY }}>
                     {JSON.stringify(stratLib, null, 2).slice(0, 800)}
                   </pre>
                 </div>
@@ -161,26 +167,28 @@ export default function AiHub() {
 
 function AiStatusCard({ icon: Icon, label, value, valueColor, sub }) {
   return (
-    <div className="rounded-2xl p-4 border transition-all" style={{ background: '#FFFFFF', borderColor: '#E5E7EB' }}
+    <div className="rounded-xl p-4 transition-all" style={{ background: SURFACE, border: `1px solid ${BORDER}` }}
       onMouseEnter={(e) => e.currentTarget.style.borderColor = 'rgba(245,158,11,0.4)'}
-      onMouseLeave={(e) => e.currentTarget.style.borderColor = '#E5E7EB'}
+      onMouseLeave={(e) => e.currentTarget.style.borderColor = BORDER}
     >
       <div className="flex items-center gap-2 mb-2">
-        <Icon className="w-4 h-4" style={{ color: GOLD }} />
-        <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#9CA3AF' }}>{label}</span>
+        <div className="p-1.5 rounded-lg" style={{ background: 'rgba(245,158,11,0.12)' }}>
+          <Icon className="w-3.5 h-3.5" style={{ color: GOLD }} />
+        </div>
+        <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: TEXT_MUTED }}>{label}</span>
       </div>
-      <div className="text-lg font-bold font-mono" style={{ color: valueColor || '#fff' }}>{value}</div>
-      <div className="text-xs mt-0.5" style={{ color: '#6B7280' }}>{sub}</div>
+      <div className="text-[18px] font-bold font-mono" style={{ color: valueColor || TEXT }}>{value}</div>
+      <div className="text-[11px] mt-0.5" style={{ color: TEXT_SECONDARY }}>{sub}</div>
     </div>
   );
 }
 
 function Card({ title, icon: Icon, testId, children }) {
   return (
-    <div data-testid={testId} className="rounded-2xl border p-5" style={{ background: '#FFFFFF', borderColor: '#E5E7EB' }}>
+    <div data-testid={testId} className="rounded-xl p-5" style={{ background: SURFACE, border: `1px solid ${BORDER}` }}>
       <div className="flex items-center gap-2 mb-4">
         <Icon className="w-4 h-4" style={{ color: GOLD }} />
-        <h3 className="text-sm font-semibold uppercase tracking-wider" style={{ color: '#9CA3AF' }}>{title}</h3>
+        <h3 className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: TEXT_MUTED }}>{title}</h3>
       </div>
       {children}
     </div>

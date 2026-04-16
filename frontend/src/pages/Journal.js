@@ -5,16 +5,25 @@ import {
   TrendingUp, TrendingDown, ChevronDown, ChevronUp, Search
 } from 'lucide-react';
 
-const MOODS = [
-  { value: 'confident', label: 'Confident', emoji: 'C', color: '#059669' },
-  { value: 'disciplined', label: 'Disciplined', emoji: 'D', color: '#2563EB' },
-  { value: 'anxious', label: 'Anxious', emoji: 'A', color: '#2563EB' },
-  { value: 'fomo', label: 'FOMO', emoji: 'F', color: '#DC2626' },
-  { value: 'greedy', label: 'Greedy', emoji: 'G', color: '#A78BFA' },
-  { value: 'neutral', label: 'Neutral', emoji: 'N', color: '#6B7280' },
-];
+const GOLD = '#F59E0B';
+const GREEN = '#10B981';
+const RED = '#EF4444';
+const SURFACE = '#151A24';
+const SURFACE_ALT = '#1E2532';
+const BG = '#0B0E14';
+const BORDER = '#2A3548';
+const TEXT = '#F8FAFC';
+const TEXT_SECONDARY = '#94A3B8';
+const TEXT_MUTED = '#64748B';
 
-const GOLD = '#2563EB';
+const MOODS = [
+  { value: 'confident', label: 'Confident', color: GREEN },
+  { value: 'disciplined', label: 'Disciplined', color: '#60A5FA' },
+  { value: 'anxious', label: 'Anxious', color: '#FBBF24' },
+  { value: 'fomo', label: 'FOMO', color: RED },
+  { value: 'greedy', label: 'Greedy', color: '#A78BFA' },
+  { value: 'neutral', label: 'Neutral', color: TEXT_MUTED },
+];
 
 export default function Journal() {
   const [notes, setNotes] = useState([]);
@@ -53,7 +62,6 @@ export default function Journal() {
   const handleSave = async (noteData) => {
     if (editingNote) {
       await postJSON(`/api/journal/notes/${editingNote.id}`, { ...noteData, _method: 'PUT' });
-      // Use PUT via fetch
       await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/journal/notes/${editingNote.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -93,69 +101,68 @@ export default function Journal() {
 
   return (
     <div className="space-y-6 animate-fade-in" data-testid="journal-page">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight" style={{ fontFamily: 'Roboto, sans-serif', color: '#111827' }}>
+          <h2 className="text-[22px] font-bold tracking-tight" style={{ fontFamily: 'Outfit, sans-serif', color: TEXT }}>
             Trade Journal
           </h2>
-          <p className="text-sm mt-1" style={{ color: '#6B7280' }}>
+          <p className="text-[13px] mt-1" style={{ color: TEXT_SECONDARY }}>
             Document your trades, lessons learned, and track your growth as a trader
           </p>
         </div>
         <button
           data-testid="new-note-btn"
           onClick={() => { setEditingNote(null); setShowForm(true); }}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all"
-          style={{ background: GOLD, color: '#F0F2F5' }}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-[13px] font-bold transition-all"
+          style={{ background: GOLD, color: BG }}
+          onMouseEnter={(e) => e.currentTarget.style.background = '#FBBF24'}
+          onMouseLeave={(e) => e.currentTarget.style.background = GOLD}
         >
           <Plus className="w-4 h-4" /> New Entry
         </button>
       </div>
 
-      {/* Search + Stats */}
-      <div className="flex flex-col sm:flex-row gap-4">
+      <div className="flex flex-col sm:flex-row gap-3">
         <div className="flex-1 relative">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2" style={{ color: '#9CA3AF' }} />
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2" style={{ color: TEXT_MUTED }} />
           <input
             data-testid="journal-search"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search notes, instruments, strategies..."
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm border focus:outline-none transition-colors"
-            style={{ background: '#FFFFFF', color: '#111827', borderColor: '#E5E7EB' }}
+            className="w-full pl-10 pr-4 py-2.5 rounded-lg text-[13px] focus:outline-none transition-colors"
+            style={{ background: SURFACE, color: TEXT, border: `1px solid ${BORDER}` }}
             onFocus={(e) => e.target.style.borderColor = GOLD}
-            onBlur={(e) => e.target.style.borderColor = '#E5E7EB'}
+            onBlur={(e) => e.target.style.borderColor = BORDER}
           />
         </div>
-        <div className="flex gap-2 items-center">
-          <span className="text-xs font-mono px-3 py-2 rounded-xl" style={{ background: '#FFFFFF', color: '#6B7280', border: '1px solid #E5E7EB' }}>
-            {total} entries
-          </span>
-        </div>
+        <span className="text-[12px] font-mono px-3 py-2.5 rounded-lg" style={{ background: SURFACE, color: TEXT_SECONDARY, border: `1px solid ${BORDER}` }}>
+          {total} entries
+        </span>
       </div>
 
-      {/* Tags cloud */}
       {allTags.length > 0 && (
         <div className="flex flex-wrap gap-2" data-testid="tags-cloud">
-          {allTags.map((tag) => (
-            <button
-              key={tag}
-              onClick={() => setSearchQuery(tag)}
-              className="px-2.5 py-1 rounded-full text-xs font-medium border transition-all"
-              style={{
-                background: searchQuery === tag ? 'rgba(245,158,11,0.12)' : 'transparent',
-                color: searchQuery === tag ? GOLD : '#6B7280',
-                borderColor: searchQuery === tag ? 'rgba(245,158,11,0.3)' : '#E5E7EB',
-              }}
-            >
-              <Tag className="w-3 h-3 inline mr-1" />{tag}
-            </button>
-          ))}
+          {allTags.map((tag) => {
+            const active = searchQuery === tag;
+            return (
+              <button
+                key={tag}
+                onClick={() => setSearchQuery(tag)}
+                className="px-2.5 py-1 rounded-full text-[11px] font-medium transition-all"
+                style={{
+                  background: active ? 'rgba(245,158,11,0.12)' : 'transparent',
+                  color: active ? GOLD : TEXT_SECONDARY,
+                  border: `1px solid ${active ? 'rgba(245,158,11,0.3)' : BORDER}`,
+                }}
+              >
+                <Tag className="w-3 h-3 inline mr-1" />{tag}
+              </button>
+            );
+          })}
         </div>
       )}
 
-      {/* Note Form Modal */}
       {showForm && (
         <NoteForm
           note={editingNote}
@@ -165,18 +172,17 @@ export default function Journal() {
         />
       )}
 
-      {/* Notes List */}
       {filtered.length === 0 ? (
-        <div className="rounded-2xl border p-12 text-center" style={{ background: '#FFFFFF', borderColor: '#E5E7EB' }}>
-          <BookOpen className="w-12 h-12 mx-auto mb-3" style={{ color: '#E5E7EB' }} />
-          <p className="text-sm" style={{ color: '#9CA3AF' }}>
+        <div className="rounded-xl p-12 text-center" style={{ background: SURFACE, border: `1px solid ${BORDER}` }}>
+          <BookOpen className="w-12 h-12 mx-auto mb-3" style={{ color: TEXT_MUTED }} />
+          <p className="text-[13px]" style={{ color: TEXT_SECONDARY }}>
             {searchQuery ? 'No notes match your search' : 'Start documenting your trading journey'}
           </p>
           {!searchQuery && (
             <button
               onClick={() => { setEditingNote(null); setShowForm(true); }}
-              className="mt-4 px-4 py-2 rounded-xl text-sm font-bold transition-all"
-              style={{ background: GOLD, color: '#F0F2F5' }}
+              className="mt-4 px-4 py-2.5 rounded-lg text-[13px] font-bold transition-all"
+              style={{ background: GOLD, color: BG }}
             >
               Write your first entry
             </button>
@@ -208,41 +214,40 @@ function NoteCard({ note, expanded, onToggle, onEdit, onDelete }) {
   return (
     <div
       data-testid={`journal-note-${note.id}`}
-      className="rounded-2xl border overflow-hidden transition-all"
-      style={{ background: '#FFFFFF', borderColor: '#E5E7EB' }}
+      className="rounded-xl overflow-hidden transition-all"
+      style={{ background: SURFACE, border: `1px solid ${BORDER}` }}
     >
-      {/* Header */}
       <div
         className="flex items-start gap-3 p-4 cursor-pointer"
         onClick={onToggle}
       >
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <h4 className="text-sm font-semibold" style={{ color: '#111827' }}>{note.title}</h4>
+            <h4 className="text-[14px] font-semibold" style={{ color: TEXT }}>{note.title}</h4>
             {note.rating > 0 && (
               <div className="flex gap-0.5">
                 {[1, 2, 3, 4, 5].map((s) => (
-                  <Star key={s} className="w-3 h-3" style={{ color: s <= note.rating ? GOLD : '#E5E7EB' }} fill={s <= note.rating ? GOLD : 'none'} />
+                  <Star key={s} className="w-3 h-3" style={{ color: s <= note.rating ? GOLD : BORDER }} fill={s <= note.rating ? GOLD : 'none'} />
                 ))}
               </div>
             )}
             {mood && (
-              <span className="px-2 py-0.5 rounded-full text-xs font-semibold" style={{ background: `${mood.color}15`, color: mood.color, border: `1px solid ${mood.color}30` }}>
+              <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold" style={{ background: `${mood.color}15`, color: mood.color, border: `1px solid ${mood.color}30` }}>
                 {mood.label}
               </span>
             )}
           </div>
 
           <div className="flex items-center gap-3 mt-1.5 flex-wrap">
-            <span className="text-xs font-mono" style={{ color: '#9CA3AF' }}>
+            <span className="text-[11px] font-mono" style={{ color: TEXT_MUTED }}>
               {new Date(note.timestamp).toLocaleDateString()} {new Date(note.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </span>
             {hasTrade && (
-              <span className="flex items-center gap-1 text-xs font-mono" style={{ color: '#6B7280' }}>
+              <span className="flex items-center gap-1 text-[11px] font-mono" style={{ color: TEXT_SECONDARY }}>
                 <Link2 className="w-3 h-3" />
                 {note.instrument} {note.direction}
                 {pnl != null && (
-                  <span style={{ color: pnl >= 0 ? '#059669' : '#DC2626' }}>
+                  <span style={{ color: pnl >= 0 ? GREEN : RED }}>
                     {pnl >= 0 ? <TrendingUp className="w-3 h-3 inline" /> : <TrendingDown className="w-3 h-3 inline" />}
                     {formatMoney(pnl)}
                   </span>
@@ -254,7 +259,7 @@ function NoteCard({ note, expanded, onToggle, onEdit, onDelete }) {
           {note.tags && (
             <div className="flex gap-1.5 mt-2 flex-wrap">
               {note.tags.split(',').filter(Boolean).map((tag) => (
-                <span key={tag} className="px-2 py-0.5 rounded text-xs" style={{ background: '#F0F2F5', color: '#6B7280' }}>
+                <span key={tag} className="px-2 py-0.5 rounded text-[11px]" style={{ background: SURFACE_ALT, color: TEXT_SECONDARY }}>
                   {tag.trim()}
                 </span>
               ))}
@@ -263,43 +268,46 @@ function NoteCard({ note, expanded, onToggle, onEdit, onDelete }) {
         </div>
 
         <div className="flex items-center gap-1">
-          <button data-testid={`edit-note-${note.id}`} onClick={(e) => { e.stopPropagation(); onEdit(); }} className="p-1.5 rounded transition-colors" style={{ color: '#9CA3AF' }}>
+          <button data-testid={`edit-note-${note.id}`} onClick={(e) => { e.stopPropagation(); onEdit(); }} className="p-1.5 rounded transition-colors" style={{ color: TEXT_MUTED }}
+            onMouseEnter={(e) => e.currentTarget.style.color = GOLD}
+            onMouseLeave={(e) => e.currentTarget.style.color = TEXT_MUTED}>
             <Edit3 className="w-3.5 h-3.5" />
           </button>
-          <button data-testid={`delete-note-${note.id}`} onClick={(e) => { e.stopPropagation(); onDelete(); }} className="p-1.5 rounded transition-colors" style={{ color: '#9CA3AF' }}>
+          <button data-testid={`delete-note-${note.id}`} onClick={(e) => { e.stopPropagation(); onDelete(); }} className="p-1.5 rounded transition-colors" style={{ color: TEXT_MUTED }}
+            onMouseEnter={(e) => e.currentTarget.style.color = RED}
+            onMouseLeave={(e) => e.currentTarget.style.color = TEXT_MUTED}>
             <Trash2 className="w-3.5 h-3.5" />
           </button>
-          {expanded ? <ChevronUp className="w-4 h-4" style={{ color: '#9CA3AF' }} /> : <ChevronDown className="w-4 h-4" style={{ color: '#9CA3AF' }} />}
+          {expanded ? <ChevronUp className="w-4 h-4" style={{ color: TEXT_MUTED }} /> : <ChevronDown className="w-4 h-4" style={{ color: TEXT_MUTED }} />}
         </div>
       </div>
 
-      {/* Expanded content */}
       {expanded && (
-        <div className="px-4 pb-4 space-y-3 border-t" style={{ borderColor: '#E5E7EB' }}>
+        <div className="px-4 pb-4 space-y-3 border-t" style={{ borderColor: BORDER }}>
           {note.content && (
             <div className="pt-3">
-              <p className="text-sm whitespace-pre-wrap leading-relaxed" style={{ color: '#6B7280' }}>{note.content}</p>
+              <p className="text-[13px] whitespace-pre-wrap leading-relaxed" style={{ color: TEXT_SECONDARY }}>{note.content}</p>
             </div>
           )}
           {note.lessons && (
-            <div className="p-3 rounded-xl" style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.15)' }}>
-              <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#059669' }}>Lessons Learned</span>
-              <p className="text-sm mt-1 whitespace-pre-wrap" style={{ color: '#6B7280' }}>{note.lessons}</p>
+            <div className="p-3 rounded-lg" style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)' }}>
+              <span className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: GREEN }}>Lessons Learned</span>
+              <p className="text-[13px] mt-1 whitespace-pre-wrap" style={{ color: TEXT_SECONDARY }}>{note.lessons}</p>
             </div>
           )}
           {note.mistakes && (
-            <div className="p-3 rounded-xl" style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)' }}>
-              <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#DC2626' }}>Mistakes to Avoid</span>
-              <p className="text-sm mt-1 whitespace-pre-wrap" style={{ color: '#6B7280' }}>{note.mistakes}</p>
+            <div className="p-3 rounded-lg" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)' }}>
+              <span className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: RED }}>Mistakes to Avoid</span>
+              <p className="text-[13px] mt-1 whitespace-pre-wrap" style={{ color: TEXT_SECONDARY }}>{note.mistakes}</p>
             </div>
           )}
           {hasTrade && (
-            <div className="p-3 rounded-xl" style={{ background: '#F0F2F5' }}>
-              <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#9CA3AF' }}>Linked Trade</span>
+            <div className="p-3 rounded-lg" style={{ background: BG, border: `1px solid ${BORDER}` }}>
+              <span className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: TEXT_MUTED }}>Linked Trade</span>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">
                 <MiniStat label="Instrument" value={note.instrument} />
-                <MiniStat label="Direction" value={note.direction} color={note.direction === 'BUY' ? '#059669' : '#DC2626'} />
-                <MiniStat label="P&L" value={formatMoney(note.pnl)} color={note.pnl >= 0 ? '#059669' : '#DC2626'} />
+                <MiniStat label="Direction" value={note.direction} color={note.direction === 'BUY' ? GREEN : RED} />
+                <MiniStat label="P&L" value={formatMoney(note.pnl)} color={note.pnl >= 0 ? GREEN : RED} />
                 <MiniStat label="Strategy" value={note.strategy_name || '--'} color={GOLD} />
               </div>
             </div>
@@ -313,8 +321,8 @@ function NoteCard({ note, expanded, onToggle, onEdit, onDelete }) {
 function MiniStat({ label, value, color }) {
   return (
     <div>
-      <div className="text-xs" style={{ color: '#9CA3AF' }}>{label}</div>
-      <div className="text-xs font-mono font-semibold" style={{ color: color || '#fff' }}>{value}</div>
+      <div className="text-[10px] uppercase tracking-widest" style={{ color: TEXT_MUTED }}>{label}</div>
+      <div className="text-[12px] font-mono font-semibold" style={{ color: color || TEXT }}>{value}</div>
     </div>
   );
 }
@@ -343,48 +351,46 @@ function NoteForm({ note, trades, onSave, onClose }) {
     });
   };
 
+  const inputStyle = { background: BG, color: TEXT, border: `1px solid ${BORDER}` };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-8 sm:pt-16 px-4" style={{ background: 'rgba(0,0,0,0.7)' }}>
+    <div className="fixed inset-0 z-50 flex items-start justify-center pt-8 sm:pt-16 px-4" style={{ background: 'rgba(0,0,0,0.78)', backdropFilter: 'blur(4px)' }}>
       <div
         data-testid="journal-note-form"
-        className="w-full max-w-2xl rounded-2xl border overflow-hidden max-h-[85vh] overflow-y-auto"
-        style={{ background: '#FFFFFF', borderColor: '#E5E7EB' }}
+        className="w-full max-w-2xl rounded-xl overflow-hidden max-h-[85vh] overflow-y-auto"
+        style={{ background: SURFACE, border: `1px solid ${BORDER}`, boxShadow: '0 20px 60px rgba(0,0,0,0.6)' }}
       >
-        <div className="flex items-center justify-between p-4 border-b" style={{ borderColor: '#E5E7EB' }}>
-          <h3 className="text-lg font-bold" style={{ fontFamily: 'Roboto, sans-serif', color: '#111827' }}>
+        <div className="flex items-center justify-between p-4 border-b" style={{ borderColor: BORDER }}>
+          <h3 className="text-[16px] font-bold" style={{ fontFamily: 'Outfit, sans-serif', color: TEXT }}>
             {note ? 'Edit Entry' : 'New Journal Entry'}
           </h3>
-          <button data-testid="close-form-btn" onClick={onClose} className="p-1" style={{ color: '#9CA3AF' }}>
+          <button data-testid="close-form-btn" onClick={onClose} className="p-1 transition-colors" style={{ color: TEXT_MUTED }}
+            onMouseEnter={(e) => e.currentTarget.style.color = TEXT}
+            onMouseLeave={(e) => e.currentTarget.style.color = TEXT_MUTED}>
             <X className="w-5 h-5" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-4 space-y-4">
-          {/* Title */}
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: '#9CA3AF' }}>Title *</label>
+          <Field label="Title *">
             <input
               data-testid="note-title-input"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. Gold breakout trade - followed the plan"
-              className="w-full px-3 py-2 rounded-xl text-sm border focus:outline-none"
-              style={{ background: '#F0F2F5', color: '#111827', borderColor: '#E5E7EB' }}
+              className="w-full px-3 py-2 rounded-lg text-[13px] focus:outline-none"
+              style={inputStyle}
               required
             />
-          </div>
+          </Field>
 
-          {/* Link Trade */}
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: '#9CA3AF' }}>
-              <Link2 className="w-3 h-3 inline mr-1" />Link to Trade (optional)
-            </label>
+          <Field label={<><Link2 className="w-3 h-3 inline mr-1" />Link to Trade (optional)</>}>
             <select
               data-testid="link-trade-select"
               value={tradeId}
               onChange={(e) => setTradeId(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl text-sm border focus:outline-none cursor-pointer"
-              style={{ background: '#F0F2F5', color: '#111827', borderColor: '#E5E7EB' }}
+              className="w-full px-3 py-2 rounded-lg text-[13px] focus:outline-none cursor-pointer"
+              style={inputStyle}
             >
               <option value="">No linked trade</option>
               {trades.map((t) => (
@@ -393,12 +399,10 @@ function NoteForm({ note, trades, onSave, onClose }) {
                 </option>
               ))}
             </select>
-          </div>
+          </Field>
 
-          {/* Rating + Mood */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: '#9CA3AF' }}>Trade Quality</label>
+            <Field label="Trade Quality">
               <div className="flex gap-1">
                 {[1, 2, 3, 4, 5].map((s) => (
                   <button
@@ -408,110 +412,114 @@ function NoteForm({ note, trades, onSave, onClose }) {
                     onClick={() => setRating(s === rating ? 0 : s)}
                     className="p-1 transition-colors"
                   >
-                    <Star className="w-5 h-5" style={{ color: s <= rating ? GOLD : '#E5E7EB' }} fill={s <= rating ? GOLD : 'none'} />
+                    <Star className="w-5 h-5" style={{ color: s <= rating ? GOLD : BORDER }} fill={s <= rating ? GOLD : 'none'} />
                   </button>
                 ))}
               </div>
-            </div>
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: '#9CA3AF' }}>Trading Mood</label>
+            </Field>
+            <Field label="Trading Mood">
               <div className="flex flex-wrap gap-1.5">
-                {MOODS.map((m) => (
-                  <button
-                    key={m.value}
-                    type="button"
-                    data-testid={`mood-btn-${m.value}`}
-                    onClick={() => setMood(mood === m.value ? '' : m.value)}
-                    className="px-2.5 py-1 rounded-full text-xs font-semibold border transition-all"
-                    style={{
-                      background: mood === m.value ? `${m.color}15` : 'transparent',
-                      color: mood === m.value ? m.color : '#9CA3AF',
-                      borderColor: mood === m.value ? `${m.color}40` : '#E5E7EB',
-                    }}
-                  >
-                    {m.label}
-                  </button>
-                ))}
+                {MOODS.map((m) => {
+                  const act = mood === m.value;
+                  return (
+                    <button
+                      key={m.value}
+                      type="button"
+                      data-testid={`mood-btn-${m.value}`}
+                      onClick={() => setMood(act ? '' : m.value)}
+                      className="px-2.5 py-1 rounded-full text-[11px] font-semibold transition-all"
+                      style={{
+                        background: act ? `${m.color}15` : 'transparent',
+                        color: act ? m.color : TEXT_SECONDARY,
+                        border: `1px solid ${act ? `${m.color}50` : BORDER}`,
+                      }}
+                    >
+                      {m.label}
+                    </button>
+                  );
+                })}
               </div>
-            </div>
+            </Field>
           </div>
 
-          {/* Content */}
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: '#9CA3AF' }}>Notes</label>
+          <Field label="Notes">
             <textarea
               data-testid="note-content-input"
               value={content}
               onChange={(e) => setContent(e.target.value)}
               placeholder="What happened? What was your analysis?"
               rows={4}
-              className="w-full px-3 py-2 rounded-xl text-sm border focus:outline-none resize-y"
-              style={{ background: '#F0F2F5', color: '#111827', borderColor: '#E5E7EB' }}
+              className="w-full px-3 py-2 rounded-lg text-[13px] focus:outline-none resize-y"
+              style={inputStyle}
             />
-          </div>
+          </Field>
 
-          {/* Lessons */}
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: '#059669' }}>Lessons Learned</label>
+          <Field label="Lessons Learned" labelColor={GREEN}>
             <textarea
               data-testid="note-lessons-input"
               value={lessons}
               onChange={(e) => setLessons(e.target.value)}
               placeholder="What did this trade teach you?"
               rows={2}
-              className="w-full px-3 py-2 rounded-xl text-sm border focus:outline-none resize-y"
-              style={{ background: '#F0F2F5', color: '#111827', borderColor: '#E5E7EB' }}
+              className="w-full px-3 py-2 rounded-lg text-[13px] focus:outline-none resize-y"
+              style={inputStyle}
             />
-          </div>
+          </Field>
 
-          {/* Mistakes */}
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: '#DC2626' }}>Mistakes to Avoid</label>
+          <Field label="Mistakes to Avoid" labelColor={RED}>
             <textarea
               data-testid="note-mistakes-input"
               value={mistakes}
               onChange={(e) => setMistakes(e.target.value)}
               placeholder="What would you do differently?"
               rows={2}
-              className="w-full px-3 py-2 rounded-xl text-sm border focus:outline-none resize-y"
-              style={{ background: '#F0F2F5', color: '#111827', borderColor: '#E5E7EB' }}
+              className="w-full px-3 py-2 rounded-lg text-[13px] focus:outline-none resize-y"
+              style={inputStyle}
             />
-          </div>
+          </Field>
 
-          {/* Tags */}
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: '#9CA3AF' }}>Tags (comma separated)</label>
+          <Field label="Tags (comma separated)">
             <input
               data-testid="note-tags-input"
               value={tags}
               onChange={(e) => setTags(e.target.value)}
               placeholder="e.g. gold, breakout, followed-plan, high-volatility"
-              className="w-full px-3 py-2 rounded-xl text-sm border focus:outline-none"
-              style={{ background: '#F0F2F5', color: '#111827', borderColor: '#E5E7EB' }}
+              className="w-full px-3 py-2 rounded-lg text-[13px] focus:outline-none"
+              style={inputStyle}
             />
-          </div>
+          </Field>
 
-          {/* Actions */}
           <div className="flex gap-3 pt-2">
             <button
               data-testid="save-note-btn"
               type="submit"
-              className="flex-1 py-2.5 rounded-xl text-sm font-bold transition-all"
-              style={{ background: GOLD, color: '#F0F2F5' }}
+              className="flex-1 py-2.5 rounded-lg text-[13px] font-bold transition-all"
+              style={{ background: GOLD, color: BG }}
+              onMouseEnter={(e) => e.currentTarget.style.background = '#FBBF24'}
+              onMouseLeave={(e) => e.currentTarget.style.background = GOLD}
             >
               {note ? 'Update Entry' : 'Save Entry'}
             </button>
             <button
               type="button"
               onClick={onClose}
-              className="px-6 py-2.5 rounded-xl text-sm font-semibold border transition-all"
-              style={{ color: '#6B7280', borderColor: '#E5E7EB' }}
+              className="px-6 py-2.5 rounded-lg text-[13px] font-semibold transition-all"
+              style={{ color: TEXT_SECONDARY, border: `1px solid ${BORDER}`, background: SURFACE_ALT }}
             >
               Cancel
             </button>
           </div>
         </form>
       </div>
+    </div>
+  );
+}
+
+function Field({ label, labelColor, children }) {
+  return (
+    <div>
+      <label className="block text-[11px] font-semibold uppercase tracking-widest mb-1.5" style={{ color: labelColor || TEXT_MUTED }}>{label}</label>
+      {children}
     </div>
   );
 }
