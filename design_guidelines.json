@@ -1,0 +1,74 @@
+{
+  "theme": "light",
+  "archetype": "Cobalt & Cloud — Professional Trading Terminal",
+  "design_philosophy": "Clean, authoritative, institutional. Light-mode trading bot dashboard with a crisp off-white canvas, pure-white elevated surfaces, and a confident royal-blue accent. Emphasises data legibility, generous whitespace, and a calm-under-pressure feel. Emotion: Trust, Precision, Clarity.",
+  "colors": {
+    "background": "#F8FAFC",
+    "surface": "#FFFFFF",
+    "surface_hover": "#F1F5F9",
+    "border": "#E2E8F0",
+    "border_strong": "#CBD5E1",
+    "text_primary": "#0F172A",
+    "text_secondary": "#475569",
+    "text_muted": "#94A3B8",
+    "primary": "#2563EB",
+    "primary_hover": "#1D4ED8",
+    "primary_soft": "rgba(37,99,235,0.08)",
+    "success": "#059669",
+    "danger": "#DC2626",
+    "warning": "#D97706",
+    "info": "#0284C7"
+  },
+  "typography": {
+    "headings": {
+      "font_family": "Outfit, sans-serif",
+      "style": "tracking-tight, font-semibold to font-bold",
+      "size_limits": "Max text-4xl for main headings"
+    },
+    "body": {
+      "font_family": "IBM Plex Sans, sans-serif",
+      "style": "leading-relaxed text-sm to text-base"
+    },
+    "data_numbers": {
+      "font_family": "JetBrains Mono, monospace",
+      "style": "tracking-tight tabular-nums"
+    }
+  },
+  "spacing_and_layout": {
+    "philosophy": "Control-Room Grid. Dense but airy. Data dominant, chrome quiet.",
+    "container_padding": "p-6 md:p-8",
+    "gap": "gap-4 md:gap-6",
+    "border_radius": "rounded-lg to rounded-xl (max 12px for institutional feel)",
+    "mobile_responsive": "Mobile-first. All grids collapse to grid-cols-1 on small screens."
+  },
+  "surfaces": {
+    "cards": "Pure white #FFFFFF, 1px solid #E2E8F0 border, no ambient shadow. On hover, border shifts toward primary: border rgba(37,99,235,0.4). Optional subtle shadow-sm on elevated cards.",
+    "header": "Crystal Glassmorphism: bg-white/72, backdrop-blur-xl, border-b border-[#E2E8F0].",
+    "active_elements": "Primary blue fill or soft blue tint (rgba(37,99,235,0.08)) with a matching border. A single-pixel inner ring for focus states.",
+    "terminal_logs": "Counter-accent dark block. #0F172A background with #60A5FA (blue-400) monospace text — stands out crisply against the light canvas."
+  },
+  "motion_and_interactions": {
+    "hover_states": "Buttons explicitly darken background (#2563EB → #1D4ED8). Cards lighten-border to primary. Rows get bg-[#F1F5F9].",
+    "transitions": "transition-all duration-200 ease-in-out for colors; transform 0.2s ease for scaling.",
+    "focus": "focus:ring-2 focus:ring-[#2563EB]/30 focus:border-[#2563EB] on inputs and buttons.",
+    "charts": "Smooth entrance animations. Dark-surface tooltips (#0F172A) on hover for contrast."
+  },
+  "components": {
+    "buttons": "Primary: Solid #2563EB background, white text. Hover: #1D4ED8. Secondary: White bg, #E2E8F0 border, #475569 text. Destructive: #DC2626.",
+    "tables": "Dense rows, border-b border-[#E2E8F0]. Hover: bg-[#F1F5F9]. Numeric columns right-aligned, tabular-nums.",
+    "charts": "Recharts. Blue (#2563EB) for primary lines, Emerald (#059669) for positive, Red (#DC2626) for negative. Grid lines extremely subtle (#F1F5F9). Tooltips on dark surface for contrast.",
+    "inputs": "White bg, 1px #E2E8F0 border. Focus ring: rgba(37,99,235,0.3). Placeholder: #94A3B8.",
+    "status_pills": "Tinted background (color @ 10% alpha) + colored text + matching 1px border. Never hard-color fills for passive indicators."
+  },
+  "analytics_page_spec": {
+    "description": "Dedicated Analytics page for deep performance review.",
+    "layout": "Control Room Grid, mobile-collapsing.",
+    "sections": [
+      "Trade Performance Stats (P&L, Win Rate, Total Trades, Profit Factor)",
+      "Equity Curve (Area chart, blue gradient)",
+      "Daily P&L Breakdown & Hourly Performance (Bar charts)",
+      "Instrument & Strategy Breakdown (Donut + table)",
+      "Win/Loss Distribution"
+    ]
+  }
+}

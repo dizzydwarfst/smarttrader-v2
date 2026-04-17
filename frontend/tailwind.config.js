@@ -6,21 +6,26 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        bg: '#0B0E14',
-        surface: '#151A24',
-        'surface-hover': '#1E2532',
-        border: '#2A3548',
-        'border-strong': '#3B4A63',
-        'text-primary': '#F8FAFC',
-        'text-secondary': '#94A3B8',
-        'text-muted': '#64748B',
-        gold: {
-          DEFAULT: '#F59E0B',
-          hover: '#FBBF24',
+        bg: '#F8FAFC',
+        surface: '#FFFFFF',
+        'surface-hover': '#F1F5F9',
+        border: '#E2E8F0',
+        'border-strong': '#CBD5E1',
+        'text-primary': '#0F172A',
+        'text-secondary': '#475569',
+        'text-muted': '#94A3B8',
+        primary: {
+          DEFAULT: '#2563EB',
+          hover: '#1D4ED8',
         },
-        success: '#10B981',
-        danger: '#EF4444',
-        info: '#3B82F6',
+        // Alias so existing `text-gold`/`bg-gold` keep working without file churn
+        gold: {
+          DEFAULT: '#2563EB',
+          hover: '#1D4ED8',
+        },
+        success: '#059669',
+        danger: '#DC2626',
+        info: '#0284C7',
       },
       fontFamily: {
         display: ['Outfit', 'sans-serif'],

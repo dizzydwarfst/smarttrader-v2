@@ -3,31 +3,36 @@
 @tailwind utilities;
 
 :root {
-  /* Obsidian / Gold Luxury Palette */
-  --bg: #0B0E14;
-  --bg-card: #151A24;
-  --bg-sidebar: #0B0E14;
-  --bg-header: rgba(11, 14, 20, 0.7);
-  --bg-hover: #1E2532;
-  --bg-muted: #151A24;
-  --border: #2A3548;
-  --border-strong: #3B4A63;
-  --text: #F8FAFC;
-  --text-secondary: #94A3B8;
-  --text-muted: #64748B;
+  /* Cobalt & Cloud — Light Blue Palette */
+  --bg: #F8FAFC;
+  --bg-card: #FFFFFF;
+  --bg-sidebar: #FFFFFF;
+  --bg-header: rgba(255, 255, 255, 0.72);
+  --bg-hover: #F1F5F9;
+  --bg-muted: #F1F5F9;
+  --border: #E2E8F0;
+  --border-strong: #CBD5E1;
+  --text: #0F172A;
+  --text-secondary: #475569;
+  --text-muted: #94A3B8;
 
-  --gold: #F59E0B;
-  --gold-hover: #FBBF24;
-  --gold-bg: rgba(245, 158, 11, 0.08);
-  --gold-border: rgba(245, 158, 11, 0.28);
+  --primary: #2563EB;
+  --primary-hover: #1D4ED8;
+  --primary-bg: rgba(37, 99, 235, 0.08);
+  --primary-border: rgba(37, 99, 235, 0.3);
 
-  --green: #10B981;
-  --green-bg: rgba(16, 185, 129, 0.10);
-  --red: #EF4444;
-  --red-bg: rgba(239, 68, 68, 0.10);
-  --blue: #3B82F6;
-  --blue-bg: rgba(59, 130, 246, 0.10);
-  --purple: #A78BFA;
+  --green: #059669;
+  --green-bg: rgba(5, 150, 105, 0.10);
+  --red: #DC2626;
+  --red-bg: rgba(220, 38, 38, 0.10);
+  --blue: #2563EB;
+  --blue-bg: rgba(37, 99, 235, 0.10);
+  --purple: #7C3AED;
+
+  --gold: var(--primary);
+  --gold-hover: var(--primary-hover);
+  --gold-bg: var(--primary-bg);
+  --gold-border: var(--primary-border);
 
   --radius: 12px;
 }
@@ -52,8 +57,8 @@ h1, h2, h3, h4, h5, h6 {
 
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #2A3548; border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: #3B4A63; }
+::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
 
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(6px); }
@@ -62,17 +67,17 @@ h1, h2, h3, h4, h5, h6 {
 .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
 
 @keyframes goldPulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4); }
-  50% { box-shadow: 0 0 0 4px rgba(245, 158, 11, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.4); }
+  50% { box-shadow: 0 0 0 4px rgba(37, 99, 235, 0); }
 }
 .gold-pulse { animation: goldPulse 2s ease-in-out infinite; }
 
-/* Recharts dark grid lines */
+/* Recharts light grid lines */
 .recharts-cartesian-grid-horizontal line,
-.recharts-cartesian-grid-vertical line { stroke: #1E2532 !important; }
+.recharts-cartesian-grid-vertical line { stroke: #F1F5F9 !important; }
 
 /* Selection */
-::selection { background: rgba(245, 158, 11, 0.3); color: #F8FAFC; }
+::selection { background: rgba(37, 99, 235, 0.2); color: #0F172A; }
 
 /* Focus ring override */
-*:focus-visible { outline: 2px solid #F59E0B; outline-offset: 2px; }
+*:focus-visible { outline: 2px solid #2563EB; outline-offset: 2px; }

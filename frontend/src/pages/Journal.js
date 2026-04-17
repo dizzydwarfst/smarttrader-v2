@@ -5,23 +5,23 @@ import {
   TrendingUp, TrendingDown, ChevronDown, ChevronUp, Search
 } from 'lucide-react';
 
-const GOLD = '#F59E0B';
-const GREEN = '#10B981';
-const RED = '#EF4444';
-const SURFACE = '#151A24';
-const SURFACE_ALT = '#1E2532';
-const BG = '#0B0E14';
-const BORDER = '#2A3548';
-const TEXT = '#F8FAFC';
-const TEXT_SECONDARY = '#94A3B8';
-const TEXT_MUTED = '#64748B';
+const GOLD = '#2563EB';
+const GREEN = '#059669';
+const RED = '#DC2626';
+const SURFACE = '#FFFFFF';
+const SURFACE_ALT = '#F1F5F9';
+const BG = '#F8FAFC';
+const BORDER = '#E2E8F0';
+const TEXT = '#0F172A';
+const TEXT_SECONDARY = '#475569';
+const TEXT_MUTED = '#94A3B8';
 
 const MOODS = [
   { value: 'confident', label: 'Confident', color: GREEN },
-  { value: 'disciplined', label: 'Disciplined', color: '#60A5FA' },
-  { value: 'anxious', label: 'Anxious', color: '#FBBF24' },
+  { value: 'disciplined', label: 'Disciplined', color: '#2563EB' },
+  { value: 'anxious', label: 'Anxious', color: '#D97706' },
   { value: 'fomo', label: 'FOMO', color: RED },
-  { value: 'greedy', label: 'Greedy', color: '#A78BFA' },
+  { value: 'greedy', label: 'Greedy', color: '#7C3AED' },
   { value: 'neutral', label: 'Neutral', color: TEXT_MUTED },
 ];
 
@@ -115,7 +115,7 @@ export default function Journal() {
           onClick={() => { setEditingNote(null); setShowForm(true); }}
           className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-[13px] font-bold transition-all"
           style={{ background: GOLD, color: BG }}
-          onMouseEnter={(e) => e.currentTarget.style.background = '#FBBF24'}
+          onMouseEnter={(e) => e.currentTarget.style.background = '#1D4ED8'}
           onMouseLeave={(e) => e.currentTarget.style.background = GOLD}
         >
           <Plus className="w-4 h-4" /> New Entry
@@ -151,9 +151,9 @@ export default function Journal() {
                 onClick={() => setSearchQuery(tag)}
                 className="px-2.5 py-1 rounded-full text-[11px] font-medium transition-all"
                 style={{
-                  background: active ? 'rgba(245,158,11,0.12)' : 'transparent',
+                  background: active ? 'rgba(37,99,235,0.12)' : 'transparent',
                   color: active ? GOLD : TEXT_SECONDARY,
-                  border: `1px solid ${active ? 'rgba(245,158,11,0.3)' : BORDER}`,
+                  border: `1px solid ${active ? 'rgba(37,99,235,0.3)' : BORDER}`,
                 }}
               >
                 <Tag className="w-3 h-3 inline mr-1" />{tag}
@@ -290,13 +290,13 @@ function NoteCard({ note, expanded, onToggle, onEdit, onDelete }) {
             </div>
           )}
           {note.lessons && (
-            <div className="p-3 rounded-lg" style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)' }}>
+            <div className="p-3 rounded-lg" style={{ background: 'rgba(5,150,105,0.08)', border: '1px solid rgba(5,150,105,0.2)' }}>
               <span className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: GREEN }}>Lessons Learned</span>
               <p className="text-[13px] mt-1 whitespace-pre-wrap" style={{ color: TEXT_SECONDARY }}>{note.lessons}</p>
             </div>
           )}
           {note.mistakes && (
-            <div className="p-3 rounded-lg" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)' }}>
+            <div className="p-3 rounded-lg" style={{ background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.2)' }}>
               <span className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: RED }}>Mistakes to Avoid</span>
               <p className="text-[13px] mt-1 whitespace-pre-wrap" style={{ color: TEXT_SECONDARY }}>{note.mistakes}</p>
             </div>
@@ -495,7 +495,7 @@ function NoteForm({ note, trades, onSave, onClose }) {
               type="submit"
               className="flex-1 py-2.5 rounded-lg text-[13px] font-bold transition-all"
               style={{ background: GOLD, color: BG }}
-              onMouseEnter={(e) => e.currentTarget.style.background = '#FBBF24'}
+              onMouseEnter={(e) => e.currentTarget.style.background = '#1D4ED8'}
               onMouseLeave={(e) => e.currentTarget.style.background = GOLD}
             >
               {note ? 'Update Entry' : 'Save Entry'}

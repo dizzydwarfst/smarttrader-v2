@@ -2,14 +2,14 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { fetchJSON, formatMoney, formatPercent, formatProfitFactor } from '../lib/api';
 import ControlPanel from '../components/ControlPanel';
 
-const GOLD = '#F59E0B';
-const GREEN = '#10B981';
-const RED = '#EF4444';
-const SURFACE = '#151A24';
-const BORDER = '#2A3548';
-const TEXT = '#F8FAFC';
-const TEXT_SECONDARY = '#94A3B8';
-const TEXT_MUTED = '#64748B';
+const GOLD = '#2563EB';
+const GREEN = '#059669';
+const RED = '#DC2626';
+const SURFACE = '#FFFFFF';
+const BORDER = '#E2E8F0';
+const TEXT = '#0F172A';
+const TEXT_SECONDARY = '#475569';
+const TEXT_MUTED = '#94A3B8';
 
 export default function Trades() {
   const [recentTrades, setRecentTrades] = useState([]);
@@ -59,14 +59,14 @@ export default function Trades() {
               className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-[14px] font-semibold transition-all"
               style={{
                 background: active ? GOLD : SURFACE,
-                color: active ? '#0B0E14' : TEXT_SECONDARY,
+                color: active ? '#F8FAFC' : TEXT_SECONDARY,
                 border: `1px solid ${active ? GOLD : BORDER}`
               }}
               onMouseEnter={(e) => { if (!active) { e.currentTarget.style.borderColor = GOLD; e.currentTarget.style.color = TEXT; } }}
               onMouseLeave={(e) => { if (!active) { e.currentTarget.style.borderColor = BORDER; e.currentTarget.style.color = TEXT_SECONDARY; } }}>
               {t.label}
               <span className="text-[12px] font-mono px-1.5 py-0.5 rounded"
-                style={{ background: active ? 'rgba(11,14,20,0.25)' : '#1E2532', color: active ? '#0B0E14' : TEXT_SECONDARY }}>{t.count}</span>
+                style={{ background: active ? 'rgba(255,255,255,0.25)' : '#F1F5F9', color: active ? '#F8FAFC' : TEXT_SECONDARY }}>{t.count}</span>
             </button>
           );
         })}
@@ -86,8 +86,8 @@ export default function Trades() {
                   {recentTrades.slice(0, 25).map((t, i) => {
                     const pnl = t.pnl || 0;
                     return (
-                      <tr key={i} className="transition-colors" style={{ borderBottom: `1px solid #1E2532` }}
-                        onMouseEnter={(e) => e.currentTarget.style.background = '#1E2532'}
+                      <tr key={i} className="transition-colors" style={{ borderBottom: `1px solid #F1F5F9` }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = '#F1F5F9'}
                         onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
                         <td className="py-3.5 px-4 font-mono" style={{ color: TEXT_SECONDARY }}>{new Date(t.closed_at || t.timestamp).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
                         <td className="py-3.5 px-4 font-mono font-bold" style={{ color: TEXT }}>{t.instrument}</td>
@@ -118,8 +118,8 @@ export default function Trades() {
                 </tr></thead>
                 <tbody>
                   {openTrades.map((t, i) => (
-                    <tr key={i} className="transition-colors" style={{ borderBottom: `1px solid #1E2532` }}
-                      onMouseEnter={(e) => e.currentTarget.style.background = '#1E2532'}
+                    <tr key={i} className="transition-colors" style={{ borderBottom: `1px solid #F1F5F9` }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = '#F1F5F9'}
                       onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
                       <td className="py-3.5 px-4 font-mono font-bold" style={{ color: TEXT }}>{t.instrument}</td>
                       <td className="py-3.5 px-4"><DirPill dir={t.direction} /></td>
@@ -148,8 +148,8 @@ export default function Trades() {
                 </tr></thead>
                 <tbody>
                   {scorecard.strategies.map((r, i) => (
-                    <tr key={i} className="transition-colors" style={{ borderBottom: `1px solid #1E2532` }}
-                      onMouseEnter={(e) => e.currentTarget.style.background = '#1E2532'}
+                    <tr key={i} className="transition-colors" style={{ borderBottom: `1px solid #F1F5F9` }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = '#F1F5F9'}
                       onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
                       <td className="py-3.5 px-4 font-mono font-bold" style={{ color: TEXT }}>{r.strategy_name}</td>
                       <td className="py-3.5 px-4 font-mono" style={{ color: TEXT_SECONDARY }}>{r.trades}</td>
@@ -158,7 +158,7 @@ export default function Trades() {
                       <td className="py-3.5 px-4 font-mono font-bold" style={{ color: r.total_pnl >= 0 ? GREEN : RED }}>{formatMoney(r.total_pnl)}</td>
                       <td className="py-3.5 px-4">
                         <span className="px-3 py-1 rounded-full text-[12px] font-bold"
-                          style={{ background: r.eligible ? 'rgba(16,185,129,0.12)' : '#1E2532', color: r.eligible ? GREEN : TEXT_SECONDARY, border: `1px solid ${r.eligible ? 'rgba(16,185,129,0.3)' : BORDER}` }}>
+                          style={{ background: r.eligible ? 'rgba(5,150,105,0.12)' : '#F1F5F9', color: r.eligible ? GREEN : TEXT_SECONDARY, border: `1px solid ${r.eligible ? 'rgba(5,150,105,0.3)' : BORDER}` }}>
                           {r.eligible ? 'Active' : 'Learning'}
                         </span>
                       </td>
@@ -175,9 +175,9 @@ export default function Trades() {
         <Card>
           {(!activityLog || activityLog.length === 0) ? <Empty text="No activity logged yet" /> : (
             <div className="max-h-[500px] overflow-y-auto font-mono text-[13px] space-y-1 p-4 rounded-lg"
-              style={{ background: '#000000', border: `1px solid #1E2532` }}>
+              style={{ background: '#000000', border: `1px solid #F1F5F9` }}>
               {[...activityLog].reverse().map((e, i) => {
-                const colors = { info: '#94A3B8', signal: '#3B82F6', blocked: GOLD, trade: GREEN };
+                const colors = { info: '#475569', signal: '#3B82F6', blocked: GOLD, trade: GREEN };
                 return (
                   <div key={i} className="py-1.5 pl-4" style={{ borderLeft: `3px solid ${colors[e.level] || GOLD}`, color: colors[e.level] || GOLD }}>
                     <span style={{ color: '#475569', marginRight: 10 }}>{e.time}</span>{e.message}
@@ -203,12 +203,12 @@ function Empty({ text }) {
 function DirPill({ dir }) {
   const buy = dir?.toUpperCase() === 'BUY';
   return <span className="px-3 py-1 rounded-full text-[12px] font-bold"
-    style={{ background: buy ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)', color: buy ? GREEN : RED, border: `1px solid ${buy ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}` }}>{dir}</span>;
+    style={{ background: buy ? 'rgba(5,150,105,0.15)' : 'rgba(220,38,38,0.15)', color: buy ? GREEN : RED, border: `1px solid ${buy ? 'rgba(5,150,105,0.3)' : 'rgba(220,38,38,0.3)'}` }}>{dir}</span>;
 }
 function StatusPill({ reason, pnl }) {
   const base = "px-3 py-1 rounded-full text-[12px] font-bold";
-  if (reason === 'take_profit') return <span className={base} style={{ background: 'rgba(16,185,129,0.12)', color: GREEN, border: `1px solid rgba(16,185,129,0.3)` }}>Completed</span>;
-  if (reason === 'stop_loss') return <span className={base} style={{ background: 'rgba(239,68,68,0.12)', color: RED, border: `1px solid rgba(239,68,68,0.3)` }}>Stopped</span>;
-  if (pnl >= 0) return <span className={base} style={{ background: 'rgba(245,158,11,0.12)', color: GOLD, border: `1px solid rgba(245,158,11,0.3)` }}>Closed</span>;
-  return <span className={base} style={{ background: '#1E2532', color: TEXT_SECONDARY, border: `1px solid ${BORDER}` }}>Pending</span>;
+  if (reason === 'take_profit') return <span className={base} style={{ background: 'rgba(5,150,105,0.12)', color: GREEN, border: `1px solid rgba(5,150,105,0.3)` }}>Completed</span>;
+  if (reason === 'stop_loss') return <span className={base} style={{ background: 'rgba(220,38,38,0.12)', color: RED, border: `1px solid rgba(220,38,38,0.3)` }}>Stopped</span>;
+  if (pnl >= 0) return <span className={base} style={{ background: 'rgba(37,99,235,0.12)', color: GOLD, border: `1px solid rgba(37,99,235,0.3)` }}>Closed</span>;
+  return <span className={base} style={{ background: '#F1F5F9', color: TEXT_SECONDARY, border: `1px solid ${BORDER}` }}>Pending</span>;
 }

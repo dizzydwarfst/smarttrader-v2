@@ -5,16 +5,16 @@ import NewsFilter from '../components/NewsFilter';
 import LearningMemory from '../components/LearningMemory';
 import { Bot, Brain, Shield, Cpu, Zap } from 'lucide-react';
 
-const GOLD = '#F59E0B';
-const GREEN = '#10B981';
-const RED = '#EF4444';
-const SURFACE = '#151A24';
-const SURFACE_ALT = '#1E2532';
-const BG = '#0B0E14';
-const BORDER = '#2A3548';
-const TEXT = '#F8FAFC';
-const TEXT_SECONDARY = '#94A3B8';
-const TEXT_MUTED = '#64748B';
+const GOLD = '#2563EB';
+const GREEN = '#059669';
+const RED = '#DC2626';
+const SURFACE = '#FFFFFF';
+const SURFACE_ALT = '#F1F5F9';
+const BG = '#F8FAFC';
+const BORDER = '#E2E8F0';
+const TEXT = '#0F172A';
+const TEXT_SECONDARY = '#475569';
+const TEXT_MUTED = '#94A3B8';
 
 export default function AiHub() {
   const [news, setNews] = useState(null);
@@ -114,7 +114,7 @@ export default function AiHub() {
               )}
               {memorySnapshot.skills_summary && (
                 <div className="pt-2 border-t" style={{ borderColor: BORDER }}>
-                  <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: '#60A5FA' }}>Skills</span>
+                  <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: '#0284C7' }}>Skills</span>
                   <p className="text-[12px] mt-1 whitespace-pre-wrap leading-relaxed" style={{ color: TEXT_SECONDARY }}>
                     {typeof memorySnapshot.skills_summary === 'string'
                       ? memorySnapshot.skills_summary.slice(0, 500)
@@ -140,9 +140,9 @@ export default function AiHub() {
                     <div className="flex items-center justify-between">
                       <span className="text-[12px] font-mono font-semibold" style={{ color: GOLD }}>{s.name || s.strategy_name || `Strategy ${i + 1}`}</span>
                       <span className="text-[10px] font-mono px-2 py-0.5 rounded-full" style={{
-                        background: s.enabled !== false ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)',
+                        background: s.enabled !== false ? 'rgba(5,150,105,0.12)' : 'rgba(220,38,38,0.12)',
                         color: s.enabled !== false ? GREEN : RED,
-                        border: `1px solid ${s.enabled !== false ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}`,
+                        border: `1px solid ${s.enabled !== false ? 'rgba(5,150,105,0.3)' : 'rgba(220,38,38,0.3)'}`,
                       }}>
                         {s.enabled !== false ? 'Active' : 'Disabled'}
                       </span>
@@ -168,11 +168,11 @@ export default function AiHub() {
 function AiStatusCard({ icon: Icon, label, value, valueColor, sub }) {
   return (
     <div className="rounded-xl p-4 transition-all" style={{ background: SURFACE, border: `1px solid ${BORDER}` }}
-      onMouseEnter={(e) => e.currentTarget.style.borderColor = 'rgba(245,158,11,0.4)'}
+      onMouseEnter={(e) => e.currentTarget.style.borderColor = 'rgba(37,99,235,0.4)'}
       onMouseLeave={(e) => e.currentTarget.style.borderColor = BORDER}
     >
       <div className="flex items-center gap-2 mb-2">
-        <div className="p-1.5 rounded-lg" style={{ background: 'rgba(245,158,11,0.12)' }}>
+        <div className="p-1.5 rounded-lg" style={{ background: 'rgba(37,99,235,0.12)' }}>
           <Icon className="w-3.5 h-3.5" style={{ color: GOLD }} />
         </div>
         <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: TEXT_MUTED }}>{label}</span>

@@ -3,15 +3,15 @@ import { fetchJSON, postJSON, formatMoney, formatCurrency, formatProfitFactor } 
 import { DollarSign, TrendingUp, Target, BarChart3, ArrowUpRight, ArrowDownRight, Pause, Play, XCircle } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 
-const GOLD = '#F59E0B';
-const GOLD_HOVER = '#FBBF24';
-const GREEN = '#10B981';
-const RED = '#EF4444';
-const SURFACE = '#151A24';
-const BORDER = '#2A3548';
-const TEXT = '#F8FAFC';
-const TEXT_SECONDARY = '#94A3B8';
-const TEXT_MUTED = '#64748B';
+const GOLD = '#2563EB';
+const GOLD_HOVER = '#1D4ED8';
+const GREEN = '#059669';
+const RED = '#DC2626';
+const SURFACE = '#FFFFFF';
+const BORDER = '#E2E8F0';
+const TEXT = '#0F172A';
+const TEXT_SECONDARY = '#475569';
+const TEXT_MUTED = '#94A3B8';
 
 export default function Dashboard() {
   const [status, setStatus] = useState(null);
@@ -67,12 +67,12 @@ export default function Dashboard() {
 
       {/* Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        <BigStat icon={DollarSign} label="Account NAV" value={formatCurrency(status?.account_nav)} color={GOLD} bg="rgba(245,158,11,0.10)" />
+        <BigStat icon={DollarSign} label="Account NAV" value={formatCurrency(status?.account_nav)} color={GOLD} bg="rgba(37,99,235,0.10)" />
         <BigStat icon={TrendingUp} label="Today's P&L" value={formatMoney(status?.daily_pnl)}
           color={status?.daily_pnl >= 0 ? GREEN : RED}
-          bg={status?.daily_pnl >= 0 ? 'rgba(16,185,129,0.10)' : 'rgba(239,68,68,0.10)'}
+          bg={status?.daily_pnl >= 0 ? 'rgba(5,150,105,0.10)' : 'rgba(220,38,38,0.10)'}
           trend={status?.daily_pnl >= 0 ? 'up' : 'down'} />
-        <BigStat icon={Target} label="Win Rate (14d)" value={stats ? `${winRate.toFixed(1)}%` : '--%'} color={GOLD} bg="rgba(245,158,11,0.10)" />
+        <BigStat icon={Target} label="Win Rate (14d)" value={stats ? `${winRate.toFixed(1)}%` : '--%'} color={GOLD} bg="rgba(37,99,235,0.10)" />
         <BigStat icon={BarChart3} label="Profit Factor" value={stats ? formatProfitFactor(stats.profit_factor) : '--'} color="#A78BFA" bg="rgba(167,139,250,0.10)" />
       </div>
 
@@ -92,7 +92,7 @@ export default function Dashboard() {
                         <stop offset="100%" stopColor={GOLD} stopOpacity={0} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#1E2532" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
                     <XAxis dataKey="time" tick={{ fill: TEXT_MUTED, fontSize: 11, fontFamily: 'JetBrains Mono' }} axisLine={{ stroke: BORDER }} tickLine={false} />
                     <YAxis tick={{ fill: TEXT_MUTED, fontSize: 11, fontFamily: 'JetBrains Mono' }} axisLine={{ stroke: BORDER }} tickLine={false} tickFormatter={v => `$${v}`} />
                     <Tooltip contentStyle={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 10, fontSize: 13, color: TEXT }}
@@ -114,7 +114,7 @@ export default function Dashboard() {
                   className="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-[14px] font-bold transition-all"
                   style={{
                     background: controlStatus?.paused ? GREEN : GOLD,
-                    color: '#0B0E14',
+                    color: '#F8FAFC',
                   }}
                   onMouseEnter={(e) => e.currentTarget.style.filter = 'brightness(1.1)'}
                   onMouseLeave={(e) => e.currentTarget.style.filter = 'none'}>
@@ -124,9 +124,9 @@ export default function Dashboard() {
                 <button data-testid="quick-close-btn"
                   onClick={async () => { if (window.confirm('Close ALL positions?')) { await postJSON('/api/bot/close-all', {}); } }}
                   className="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-[14px] font-bold transition-all"
-                  style={{ background: 'rgba(239,68,68,0.12)', color: RED, border: `1px solid rgba(239,68,68,0.3)` }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = RED; e.currentTarget.style.color = '#0B0E14'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(239,68,68,0.12)'; e.currentTarget.style.color = RED; }}>
+                  style={{ background: 'rgba(220,38,38,0.12)', color: RED, border: `1px solid rgba(220,38,38,0.3)` }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = RED; e.currentTarget.style.color = '#F8FAFC'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(220,38,38,0.12)'; e.currentTarget.style.color = RED; }}>
                   <XCircle className="w-4 h-4" /> Close All
                 </button>
               </div>
@@ -144,7 +144,7 @@ export default function Dashboard() {
                   <PieChart>
                     <Pie data={pieData} cx="50%" cy="50%" innerRadius={35} outerRadius={50} paddingAngle={4} dataKey="value" stroke="none">
                       <Cell fill={GOLD} />
-                      <Cell fill="#2A3548" />
+                      <Cell fill="#E2E8F0" />
                     </Pie>
                   </PieChart>
                 </ResponsiveContainer>
@@ -250,7 +250,7 @@ function BigStat({ icon: Icon, label, value, color, bg, trend }) {
 
 function InfoRow({ label, value, valueColor }) {
   return (
-    <div className="flex items-center justify-between py-3 px-4 rounded-lg" style={{ background: '#0B0E14', border: `1px solid ${BORDER}` }}>
+    <div className="flex items-center justify-between py-3 px-4 rounded-lg" style={{ background: '#F8FAFC', border: `1px solid ${BORDER}` }}>
       <span className="text-[14px]" style={{ color: TEXT_SECONDARY }}>{label}</span>
       <span className="text-[14px] font-mono font-bold" style={{ color: valueColor || TEXT }}>{value}</span>
     </div>
@@ -259,7 +259,7 @@ function InfoRow({ label, value, valueColor }) {
 
 function MetricBox({ label, value, color }) {
   return (
-    <div className="p-4 rounded-lg" style={{ background: '#0B0E14', border: `1px solid ${BORDER}` }}>
+    <div className="p-4 rounded-lg" style={{ background: '#F8FAFC', border: `1px solid ${BORDER}` }}>
       <div className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: TEXT_MUTED }}>{label}</div>
       <div className="text-[20px] font-bold font-mono mt-1 tracking-tight" style={{ color: color || TEXT }}>{value}</div>
     </div>
@@ -271,7 +271,7 @@ function StatusPill({ status }) {
   const online = status?.bot_online;
   return (
     <div data-testid="status-pill" className="flex items-center gap-2 px-4 py-2 rounded-full text-[13px] font-bold"
-      style={{ background: SURFACE, color: online ? GREEN : RED, border: `1px solid ${online ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}` }}>
+      style={{ background: SURFACE, color: online ? GREEN : RED, border: `1px solid ${online ? 'rgba(5,150,105,0.3)' : 'rgba(220,38,38,0.3)'}` }}>
       <span className="w-2.5 h-2.5 rounded-full gold-pulse" style={{ background: online ? GREEN : RED }} />
       {status ? `${isPractice ? 'Practice' : 'Live'} · ${online ? 'Online' : 'Offline'}` : 'Connecting...'}
     </div>

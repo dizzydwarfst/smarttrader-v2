@@ -10,16 +10,16 @@ import {
   AreaChart, Area, PieChart, Pie, Cell
 } from 'recharts';
 
-const GOLD = '#F59E0B';
-const GREEN = '#10B981';
-const RED = '#EF4444';
+const GOLD = '#2563EB';
+const GREEN = '#059669';
+const RED = '#DC2626';
 const BLUE = '#3B82F6';
 const PURPLE = '#A78BFA';
-const SURFACE = '#151A24';
-const BORDER = '#2A3548';
-const TEXT = '#F8FAFC';
-const TEXT_SECONDARY = '#94A3B8';
-const TEXT_MUTED = '#64748B';
+const SURFACE = '#FFFFFF';
+const BORDER = '#E2E8F0';
+const TEXT = '#0F172A';
+const TEXT_SECONDARY = '#475569';
+const TEXT_MUTED = '#94A3B8';
 
 export default function Analytics() {
   const [overview, setOverview] = useState(null);
@@ -73,7 +73,7 @@ export default function Analytics() {
     name: inst.instrument,
     value: inst.trades,
   }));
-  const PIE_COLORS = [GOLD, GREEN, BLUE, PURPLE, RED, '#EC4899', '#06B6D4', '#FBBF24'];
+  const PIE_COLORS = [GOLD, GREEN, BLUE, PURPLE, RED, '#EC4899', '#06B6D4', '#1D4ED8'];
 
   const distChartData = distribution ? [
     { name: 'Large Loss', value: distribution.pnl_ranges.large_loss, color: RED },
@@ -98,7 +98,7 @@ export default function Analytics() {
                 className="px-4 py-2 rounded-lg text-xs font-bold transition-all"
                 style={{
                   background: act ? GOLD : SURFACE,
-                  color: act ? '#0B0E14' : TEXT_SECONDARY,
+                  color: act ? '#F8FAFC' : TEXT_SECONDARY,
                   border: `1px solid ${act ? GOLD : BORDER}`,
                 }}
                 onMouseEnter={(e) => { if (!act) { e.currentTarget.style.borderColor = GOLD; e.currentTarget.style.color = TEXT; } }}
@@ -133,7 +133,7 @@ export default function Analytics() {
           <div style={{ height: 300 }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={dailyData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1E2532" />
+                <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
                 <XAxis dataKey="date" tick={{ fill: TEXT_MUTED, fontSize: 10, fontFamily: 'JetBrains Mono' }}
                   axisLine={{ stroke: BORDER }} tickLine={false} tickFormatter={(v) => v.slice(5)} />
                 <YAxis tick={{ fill: TEXT_MUTED, fontSize: 11, fontFamily: 'JetBrains Mono' }}
@@ -161,7 +161,7 @@ export default function Analytics() {
                     <stop offset="100%" stopColor={GOLD} stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1E2532" />
+                <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
                 <XAxis dataKey="date" tick={{ fill: TEXT_MUTED, fontSize: 10, fontFamily: 'JetBrains Mono' }}
                   axisLine={{ stroke: BORDER }} tickLine={false} tickFormatter={(v) => v.slice(5)} />
                 <YAxis tick={{ fill: TEXT_MUTED, fontSize: 11, fontFamily: 'JetBrains Mono' }}
@@ -180,7 +180,7 @@ export default function Analytics() {
             <div style={{ height: 250 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={hourlyChartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1E2532" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
                   <XAxis dataKey="hour" tick={{ fill: TEXT_MUTED, fontSize: 9, fontFamily: 'JetBrains Mono' }}
                     axisLine={{ stroke: BORDER }} tickLine={false} />
                   <YAxis tick={{ fill: TEXT_MUTED, fontSize: 10, fontFamily: 'JetBrains Mono' }}
@@ -202,7 +202,7 @@ export default function Analytics() {
             <div style={{ height: 250 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={distChartData} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1E2532" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
                   <XAxis type="number" tick={{ fill: TEXT_MUTED, fontSize: 10, fontFamily: 'JetBrains Mono' }}
                     axisLine={{ stroke: BORDER }} tickLine={false} />
                   <YAxis type="category" dataKey="name" tick={{ fill: TEXT_SECONDARY, fontSize: 10 }}
@@ -263,8 +263,8 @@ export default function Analytics() {
                 </tr></thead>
                 <tbody>
                   {instruments.map((inst, i) => (
-                    <tr key={i} style={{ borderBottom: `1px solid #1E2532` }}
-                      onMouseEnter={(e) => e.currentTarget.style.background = '#1E2532'}
+                    <tr key={i} style={{ borderBottom: `1px solid #F1F5F9` }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = '#F1F5F9'}
                       onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
                       <td className="py-2 px-2 font-mono font-bold" style={{ color: TEXT }}>{inst.instrument}</td>
                       <td className="py-2 px-2 font-mono" style={{ color: TEXT_SECONDARY }}>{inst.trades}</td>
@@ -291,8 +291,8 @@ export default function Analytics() {
               </tr></thead>
               <tbody>
                 {strategies.map((s, i) => (
-                  <tr key={i} style={{ borderBottom: `1px solid #1E2532` }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = '#1E2532'}
+                  <tr key={i} style={{ borderBottom: `1px solid #F1F5F9` }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#F1F5F9'}
                     onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
                     <td className="py-2 px-3 font-mono font-bold" style={{ color: GOLD }}>{s.strategy}</td>
                     <td className="py-2 px-3 font-mono" style={{ color: TEXT_SECONDARY }}>{s.trades}</td>
@@ -312,12 +312,12 @@ export default function Analytics() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card title="Bot Activity Log" icon={Activity} testId="analytics-activity-log">
           <div className="max-h-64 overflow-y-auto font-mono text-xs space-y-0.5 p-3 rounded-lg"
-            style={{ background: '#000000', border: `1px solid #1E2532` }}>
+            style={{ background: '#000000', border: `1px solid #F1F5F9` }}>
             {(!activityLog || activityLog.length === 0) ? (
               <p style={{ color: GOLD, opacity: 0.6 }}>No activity logged yet</p>
             ) : (
               [...activityLog].reverse().map((entry, i) => {
-                const levelColors = { info: '#94A3B8', signal: BLUE, blocked: GOLD, trade: GREEN };
+                const levelColors = { info: '#475569', signal: BLUE, blocked: GOLD, trade: GREEN };
                 const color = levelColors[entry.level] || GOLD;
                 return (
                   <div key={i} className="py-0.5 pl-2 border-l-2" style={{ borderColor: color, color }}>
@@ -352,7 +352,7 @@ export default function Analytics() {
                 <div className="flex flex-wrap gap-2">
                   {Object.entries(distribution.exit_reasons).map(([reason, count]) => (
                     <span key={reason} className="px-2 py-1 rounded text-xs font-mono"
-                      style={{ background: '#0B0E14', color: TEXT_SECONDARY, border: `1px solid ${BORDER}` }}>
+                      style={{ background: '#F8FAFC', color: TEXT_SECONDARY, border: `1px solid ${BORDER}` }}>
                       {reason}: {count}
                     </span>
                   ))}
@@ -384,7 +384,7 @@ function Empty({ text }) {
 
 function StatusItem({ label, value, color }) {
   return (
-    <div className="p-3 rounded-lg" style={{ background: '#0B0E14', border: `1px solid ${BORDER}` }}>
+    <div className="p-3 rounded-lg" style={{ background: '#F8FAFC', border: `1px solid ${BORDER}` }}>
       <div className="text-xs mb-1" style={{ color: TEXT_MUTED }}>{label}</div>
       <div className="text-sm font-bold font-mono" style={{ color }}>{value}</div>
     </div>
