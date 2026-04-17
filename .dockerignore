@@ -8,3 +8,15 @@ skills.md
 bot_status.json
 runtime_commands.json
 .claude
+
+# Frontend artifacts — node_modules is huge, build is regenerated in stage 1
+frontend/node_modules
+frontend/build
+frontend/.env
+frontend/.env.local
+
+# Dev / editor
+.vscode
+.idea
+.pytest_cache
+*.log
