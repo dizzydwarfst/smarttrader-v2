@@ -59,6 +59,10 @@ class TradeJournal:
             trades.append(trade)
         return trades
 
+    def _fetch_rows_as_dicts(self, cursor):
+        columns = [desc[0] for desc in cursor.description]
+        return [dict(zip(columns, row)) for row in cursor.fetchall()]
+
     def _create_tables(self):
         """Create tables if they don't exist yet."""
         conn = self._get_conn()
@@ -175,8 +179,29 @@ class TradeJournal:
             )
         """)
 
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS journal_notes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                trade_id INTEGER,
+                timestamp TEXT NOT NULL,
+                title TEXT NOT NULL,
+                content TEXT,
+                tags TEXT,
+                rating INTEGER DEFAULT 0,
+                mood TEXT,
+                lessons TEXT,
+                mistakes TEXT,
+                screenshot_url TEXT
+            )
+        """)
+
         conn.commit()
         conn.close()
+
+    def _normalize_tags(self, tags):
+        if isinstance(tags, list):
+            return ",".join(str(tag).strip() for tag in tags if str(tag).strip())
+        return (tags or "").strip()
 
     # ─── Trade Recording ─────────────────────────────────
 
@@ -609,6 +634,142 @@ class TradeJournal:
                 "total_pnl": data["total_pnl"],
             }
         return result
+
+    def get_journal_notes(self, limit=50, offset=0):
+        """Return journal notes joined with trade context."""
+        conn = self._get_conn()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT jn.*, t.instrument, t.direction, t.pnl, t.strategy_name,
+                   t.entry_price, t.exit_price, t.exit_reason, t.market_regime
+            FROM journal_notes jn
+            LEFT JOIN trades t ON jn.trade_id = t.id
+            ORDER BY jn.timestamp DESC
+            LIMIT ? OFFSET ?
+        """, (limit, offset))
+        notes = self._fetch_rows_as_dicts(cursor)
+        cursor.execute("SELECT COUNT(*) FROM journal_notes")
+        total = cursor.fetchone()[0]
+        conn.close()
+        return {"notes": notes, "total": total}
+
+    def get_journal_note(self, note_id):
+        """Return one journal note by id with trade context."""
+        conn = self._get_conn()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT jn.*, t.instrument, t.direction, t.pnl, t.strategy_name,
+                   t.entry_price, t.exit_price, t.exit_reason, t.market_regime
+            FROM journal_notes jn
+            LEFT JOIN trades t ON jn.trade_id = t.id
+            WHERE jn.id = ?
+        """, (note_id,))
+        notes = self._fetch_rows_as_dicts(cursor)
+        conn.close()
+        return notes[0] if notes else None
+
+    def create_journal_note(self, body):
+        """Create a new journal note."""
+        conn = self._get_conn()
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO journal_notes (
+                trade_id, timestamp, title, content, tags, rating,
+                mood, lessons, mistakes, screenshot_url
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            body.get("trade_id"),
+            datetime.now().isoformat(),
+            (body.get("title") or "").strip(),
+            body.get("content", ""),
+            self._normalize_tags(body.get("tags")),
+            int(body.get("rating") or 0),
+            body.get("mood", ""),
+            body.get("lessons", ""),
+            body.get("mistakes", ""),
+            body.get("screenshot_url", ""),
+        ))
+        note_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+        return note_id
+
+    def update_journal_note(self, note_id, body):
+        """Update an existing journal note. Returns True when updated."""
+        conn = self._get_conn()
+        cursor = conn.cursor()
+        cursor.execute("SELECT id FROM journal_notes WHERE id = ?", (note_id,))
+        if not cursor.fetchone():
+            conn.close()
+            return False
+
+        cursor.execute("""
+            UPDATE journal_notes SET
+                trade_id = ?,
+                title = ?,
+                content = ?,
+                tags = ?,
+                rating = ?,
+                mood = ?,
+                lessons = ?,
+                mistakes = ?,
+                screenshot_url = ?
+            WHERE id = ?
+        """, (
+            body.get("trade_id"),
+            (body.get("title") or "").strip(),
+            body.get("content", ""),
+            self._normalize_tags(body.get("tags")),
+            int(body.get("rating") or 0),
+            body.get("mood", ""),
+            body.get("lessons", ""),
+            body.get("mistakes", ""),
+            body.get("screenshot_url", ""),
+            note_id,
+        ))
+        conn.commit()
+        conn.close()
+        return True
+
+    def delete_journal_note(self, note_id):
+        """Delete a journal note. Returns True when deleted."""
+        conn = self._get_conn()
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM journal_notes WHERE id = ?", (note_id,))
+        deleted = cursor.rowcount > 0
+        conn.commit()
+        conn.close()
+        return deleted
+
+    def get_journal_tags(self):
+        """Return all unique note tags."""
+        conn = self._get_conn()
+        cursor = conn.cursor()
+        cursor.execute("SELECT tags FROM journal_notes WHERE tags IS NOT NULL AND tags != ''")
+        all_tags = set()
+        for (tags_string,) in cursor.fetchall():
+            for tag in (tags_string or "").split(","):
+                cleaned = tag.strip()
+                if cleaned:
+                    all_tags.add(cleaned)
+        conn.close()
+        return sorted(all_tags)
+
+    def get_trades_for_linking(self, days=30):
+        """Return recent trades in a lightweight shape for note linking."""
+        trades = self.get_recent_trades(days=days)
+        return [
+            {
+                "id": trade.get("id"),
+                "instrument": trade.get("instrument"),
+                "direction": trade.get("direction"),
+                "pnl": trade.get("pnl"),
+                "strategy_name": trade.get("strategy_name"),
+                "timestamp": trade.get("closed_at") or trade.get("timestamp"),
+                "exit_reason": trade.get("exit_reason"),
+            }
+            for trade in trades
+        ]
 
     # ─── Parameter Change Logging ────────────────────────
 

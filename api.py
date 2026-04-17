@@ -1,50 +1,42 @@
-"""
-api.py — Dashboard API Server
+﻿"""
+api.py - SmartTrader dashboard and SPA server.
 
-Run this ALONGSIDE the bot to get a visual dashboard:
+Run this alongside the bot:
     python api.py
 
-Then open http://localhost:8000 in your browser.
-
-Provides REST endpoints for the React dashboard to read:
-- Trade history and performance stats
-- Open positions
-- Bot configuration
-- Learning engine status
-- AI advisor analysis
-- News filter status
+The API serves both the trading bot endpoints and the React frontend build
+when it exists. If the frontend build has not been generated yet, it falls
+back to the legacy dashboard.html page.
 """
 
 import json
 import logging
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse
 import uvicorn
 
-from config import config
-from trade_journal import TradeJournal
 from ai_advisor import AIAdvisor
+from config import config
 from news_filter import NewsFilter
-from trading_memory import TradingMemory
-from strategy_library import StrategyLibrary
 from serialization_utils import make_json_safe
-from trading_profiles import (
-    write_command,
-    list_profiles,
-    get_profile,
-    PROFILES,
-    read_command,
-)
+from strategy_library import StrategyLibrary
+from trade_journal import TradeJournal
+from trading_memory import TradingMemory
+from trading_profiles import PROFILES, read_command, write_command
 
 logger = logging.getLogger("Dashboard")
 
+APP_DIR = Path(__file__).parent
+LEGACY_DASHBOARD_PATH = APP_DIR / "dashboard.html"
+FRONTEND_BUILD_DIR = APP_DIR / "frontend" / "build"
+FRONTEND_INDEX_PATH = FRONTEND_BUILD_DIR / "index.html"
+
 app = FastAPI(title="SmartTrader Dashboard API", version="3.0")
 
-# Allow dashboard to call API from browser
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -52,7 +44,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Shared instances
 journal = TradeJournal()
 memory = TradingMemory(
     soul_name=config.SOUL_PATH,
@@ -66,7 +57,7 @@ news_filter = NewsFilter()
 def read_runtime_status():
     status_path = Path(config.BOT_STATUS_PATH)
     if not status_path.is_absolute():
-        status_path = Path(__file__).parent / status_path
+        status_path = APP_DIR / status_path
     if not status_path.exists():
         return {}
 
@@ -97,18 +88,40 @@ def _json_safe(payload):
     return make_json_safe(payload)
 
 
-# ─── Dashboard HTML ──────────────────────────────────────
+def _frontend_build_ready() -> bool:
+    return FRONTEND_INDEX_PATH.exists()
 
-@app.get("/", response_class=HTMLResponse)
+
+def _serve_frontend_entry():
+    if _frontend_build_ready():
+        return FileResponse(FRONTEND_INDEX_PATH)
+    if LEGACY_DASHBOARD_PATH.exists():
+        return HTMLResponse(LEGACY_DASHBOARD_PATH.read_text(encoding="utf-8"))
+    return HTMLResponse("<h1>Frontend build not found. Run the frontend build first.</h1>")
+
+
+def _serve_frontend_path(full_path: str):
+    if not _frontend_build_ready():
+        return _serve_frontend_entry()
+
+    candidate = (FRONTEND_BUILD_DIR / full_path).resolve()
+    build_root = FRONTEND_BUILD_DIR.resolve()
+
+    try:
+        candidate.relative_to(build_root)
+    except ValueError:
+        return _serve_frontend_entry()
+
+    if candidate.is_file():
+        return FileResponse(candidate)
+
+    return _serve_frontend_entry()
+
+
+@app.get("/")
 async def serve_dashboard():
-    """Serve the dashboard HTML page."""
-    dashboard_path = Path(__file__).parent / "dashboard.html"
-    if dashboard_path.exists():
-        return HTMLResponse(dashboard_path.read_text(encoding="utf-8"))
-    return HTMLResponse("<h1>Dashboard file not found. Make sure dashboard.html is in the same folder.</h1>")
+    return _serve_frontend_entry()
 
-
-# ─── Config & Status ─────────────────────────────────────
 
 @app.get("/api/config")
 async def get_config():
@@ -118,7 +131,6 @@ async def get_config():
 
 @app.get("/api/status")
 async def get_status():
-    """Overall bot status."""
     runtime = sync_runtime_control_settings()
     stats = journal.get_trade_stats(days=14)
     open_trades = journal.get_open_trades()
@@ -128,27 +140,29 @@ async def get_status():
         else len(open_trades)
     )
     daily_pnl = journal.get_daily_pnl()
-    return _json_safe({
-        "timestamp": datetime.now().isoformat(),
-        "trading_mode": runtime.get("trading_mode", config.TRADING_MODE),
-        "bot_online": runtime.get("bot_online", False),
-        "current_activity": runtime.get("current_activity", "Waiting for bot to connect..."),
-        "last_scan_at": runtime.get("last_scan_at"),
-        "account_nav": runtime.get("account_nav"),
-        "balance": runtime.get("balance"),
-        "unrealized_pnl": runtime.get("unrealized_pnl"),
-        "open_positions": open_positions,
-        "daily_pnl": daily_pnl,
-        "total_trades_14d": stats["total"],
-        "win_rate_14d": stats["win_rate"],
-        "total_pnl_14d": stats["total_pnl"],
-        "profit_factor_14d": stats["profit_factor"],
-        "bankroll_context": runtime.get("bankroll_context", {}),
-        "decision_factors": runtime.get("decision_factors", {}),
-        "wait_reasons": runtime.get("wait_reasons", {}),
-        "trade_readiness": runtime.get("trade_readiness", {}),
-        "execution_status": runtime.get("execution_status", {}),
-    })
+    return _json_safe(
+        {
+            "timestamp": datetime.now().isoformat(),
+            "trading_mode": runtime.get("trading_mode", config.TRADING_MODE),
+            "bot_online": runtime.get("bot_online", False),
+            "current_activity": runtime.get("current_activity", "Waiting for bot to connect..."),
+            "last_scan_at": runtime.get("last_scan_at"),
+            "account_nav": runtime.get("account_nav"),
+            "balance": runtime.get("balance"),
+            "unrealized_pnl": runtime.get("unrealized_pnl"),
+            "open_positions": open_positions,
+            "daily_pnl": daily_pnl,
+            "total_trades_14d": stats["total"],
+            "win_rate_14d": stats["win_rate"],
+            "total_pnl_14d": stats["total_pnl"],
+            "profit_factor_14d": stats["profit_factor"],
+            "bankroll_context": runtime.get("bankroll_context", {}),
+            "decision_factors": runtime.get("decision_factors", {}),
+            "wait_reasons": runtime.get("wait_reasons", {}),
+            "trade_readiness": runtime.get("trade_readiness", {}),
+            "execution_status": runtime.get("execution_status", {}),
+        }
+    )
 
 
 @app.get("/api/news/status")
@@ -176,8 +190,6 @@ async def get_strategy_library_snapshot():
     return _json_safe(strategy_library.get_snapshot())
 
 
-# ─── Trades ──────────────────────────────────────────────
-
 @app.get("/api/trades/open")
 async def get_open_trades():
     return _json_safe(journal.get_open_trades())
@@ -200,14 +212,10 @@ async def get_strategy_scorecard(days: int = 30, min_trades: int = 3):
     return _json_safe(journal.get_strategy_scorecard(days=days, min_trades=min_trades))
 
 
-# ─── Learning Engine ─────────────────────────────────────
-
 @app.get("/api/learning/history")
 async def get_learning_history(limit: int = 20):
     return _json_safe(journal.get_param_history(limit=limit))
 
-
-# ─── AI Advisor ──────────────────────────────────────────
 
 @app.get("/api/ai/status")
 async def get_ai_status():
@@ -235,112 +243,120 @@ async def ask_ai(body: dict):
     return _json_safe(advisor.ask_question(question))
 
 
-# ─── Performance Chart Data ──────────────────────────────
-
 @app.get("/api/chart/pnl")
 async def get_pnl_chart(days: int = 14):
-    """Returns cumulative P&L data for charting."""
     trades = journal.get_recent_trades(days=days)
-    trades.reverse()  # Oldest first
+    trades.reverse()
 
     cumulative = 0
     data_points = []
-    for t in trades:
-        cumulative += (t["pnl"] or 0)
-        data_points.append({
-            "timestamp": t["timestamp"],
-            "pnl": t["pnl"],
-            "cumulative_pnl": cumulative,
-            "instrument": t["instrument"],
-            "direction": t["direction"],
-            "exit_reason": t["exit_reason"],
-        })
+    for trade in trades:
+        cumulative += trade.get("pnl") or 0
+        data_points.append(
+            {
+                "timestamp": trade.get("timestamp"),
+                "pnl": trade.get("pnl"),
+                "cumulative_pnl": cumulative,
+                "instrument": trade.get("instrument"),
+                "direction": trade.get("direction"),
+                "exit_reason": trade.get("exit_reason"),
+            }
+        )
     return _json_safe(data_points)
 
 
-# ─── Bot Control ────────────────────────────────────────
-
 @app.get("/api/profiles")
 async def get_profiles():
-    """List all available trading profiles."""
     runtime = read_runtime_status()
     active = runtime.get("active_profile", "routine")
     profiles = {}
-    for name, p in PROFILES.items():
+    for name, profile in PROFILES.items():
         profiles[name] = {
-            "label": p["label"],
-            "description": p["description"],
+            "label": profile["label"],
+            "description": profile["description"],
             "active": name == active,
-            "settings": p["settings"],
+            "settings": profile["settings"],
         }
     return _json_safe(profiles)
 
 
 @app.post("/api/profile/activate")
 async def activate_profile(body: dict):
-    """Switch the bot to a different trading profile."""
     profile_name = body.get("profile", "").lower()
     if profile_name not in PROFILES:
-        raise HTTPException(status_code=400, detail=f"Unknown profile: {profile_name}. Available: {list(PROFILES.keys())}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unknown profile: {profile_name}. Available: {list(PROFILES.keys())}",
+        )
     write_command("activate_profile", {"profile": profile_name})
-    return {"status": "ok", "message": f"Profile '{profile_name}' activation queued. Bot will switch on next scan."}
+    return {
+        "status": "ok",
+        "message": f"Profile '{profile_name}' activation queued. Bot will switch on next scan.",
+    }
 
 
 @app.post("/api/settings")
 async def update_settings(body: dict):
-    """Update individual bot settings at runtime."""
     allowed_keys = {
-        "poll_interval", "bar_granularity", "risk_per_trade", "max_positions",
-        "daily_loss_limit", "stop_loss_atr_mult", "take_profit_atr_mult",
-        "spread_limit_mult", "strategies", "fast_ema", "slow_ema",
-        "breakout_lookback", "news_filter_enabled", "learning_enabled",
-        "daily_loss_limit_enabled", "min_trade_pnl", "reverse_mode",
+        "poll_interval",
+        "bar_granularity",
+        "risk_per_trade",
+        "max_positions",
+        "daily_loss_limit",
+        "stop_loss_atr_mult",
+        "take_profit_atr_mult",
+        "spread_limit_mult",
+        "strategies",
+        "fast_ema",
+        "slow_ema",
+        "breakout_lookback",
+        "news_filter_enabled",
+        "learning_enabled",
+        "daily_loss_limit_enabled",
+        "min_trade_pnl",
+        "reverse_mode",
     }
     settings = {}
     for key, value in body.items():
         if key.lower() in allowed_keys:
             settings[key.upper()] = value
     if not settings:
-        raise HTTPException(status_code=400, detail=f"No valid settings provided. Allowed: {sorted(allowed_keys)}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"No valid settings provided. Allowed: {sorted(allowed_keys)}",
+        )
     write_command("update_settings", settings)
     return {"status": "ok", "message": f"Settings update queued: {list(settings.keys())}"}
 
 
 @app.post("/api/bot/pause")
 async def pause_bot():
-    """Pause the bot (stops scanning, keeps running)."""
     write_command("pause")
     return {"status": "ok", "message": "Pause command queued."}
 
 
 @app.post("/api/bot/resume")
 async def resume_bot():
-    """Resume the bot after pausing."""
     write_command("resume")
     return {"status": "ok", "message": "Resume command queued."}
 
 
 @app.post("/api/bot/close-all")
 async def close_all_positions():
-    """Close all open positions immediately."""
     write_command("close_all")
     return {"status": "ok", "message": "Close-all command queued."}
 
 
 @app.post("/api/bot/training-mode")
 async def set_training_mode(body: dict):
-    """Toggle the daily loss limit off for training, or back on for live-style runs."""
     enabled = bool(body.get("enabled", True))
-    # training_mode ON  => daily loss limit DISABLED
-    # training_mode OFF => daily loss limit ENABLED
-    write_command("update_settings", {"DAILY_LOSS_LIMIT_ENABLED": (not enabled)})
+    write_command("update_settings", {"DAILY_LOSS_LIMIT_ENABLED": not enabled})
     label = "ON (daily loss limit disabled)" if enabled else "OFF (daily loss limit enabled)"
     return {"status": "ok", "message": f"Training mode {label}"}
 
 
 @app.post("/api/bot/reverse-mode")
 async def set_reverse_mode(body: dict):
-    """Toggle reverse mode — flips every BUY/SELL before execution."""
     enabled = bool(body.get("enabled", False))
     write_command("update_settings", {"REVERSE_MODE": enabled})
     return {"status": "ok", "message": f"Reverse mode {'ON' if enabled else 'OFF'}"}
@@ -348,7 +364,6 @@ async def set_reverse_mode(body: dict):
 
 @app.post("/api/bot/min-trade-pnl")
 async def set_min_trade_pnl(body: dict):
-    """Set the minimum |P&L| for a trade to count as a win or loss."""
     try:
         value = float(body.get("value", 1.0))
     except (TypeError, ValueError):
@@ -361,41 +376,254 @@ async def set_min_trade_pnl(body: dict):
 
 @app.get("/api/bot/activity-log")
 async def get_activity_log():
-    """Get recent bot activity log entries."""
     runtime = sync_runtime_control_settings()
     return _json_safe(runtime.get("activity_log", []))
 
 
 @app.get("/api/bot/control-status")
 async def get_control_status():
-    """Get current bot control state (profile, paused, etc.)."""
     runtime = sync_runtime_control_settings()
-    return _json_safe({
-        "active_profile": runtime.get("active_profile", "routine"),
-        "paused": runtime.get("paused", False),
-        "bot_online": runtime.get("bot_online", False),
-        "poll_interval": runtime.get("poll_interval", config.POLL_INTERVAL),
-        "current_activity": runtime.get("current_activity", "Unknown"),
-        "pending_command": read_command() is not None,
-        # Read toggle state from the runtime status file the bot writes,
-        # not from this subprocess's own stale config object.
-        "daily_loss_limit_enabled": runtime.get(
-            "daily_loss_limit_enabled", config.DAILY_LOSS_LIMIT_ENABLED
-        ),
-        "reverse_mode": runtime.get("reverse_mode", config.REVERSE_MODE),
-        "min_trade_pnl": runtime.get("min_trade_pnl", config.MIN_TRADE_PNL),
-    })
+    return _json_safe(
+        {
+            "active_profile": runtime.get("active_profile", "routine"),
+            "paused": runtime.get("paused", False),
+            "bot_online": runtime.get("bot_online", False),
+            "poll_interval": runtime.get("poll_interval", config.POLL_INTERVAL),
+            "current_activity": runtime.get("current_activity", "Unknown"),
+            "pending_command": read_command() is not None,
+            "daily_loss_limit_enabled": runtime.get(
+                "daily_loss_limit_enabled", config.DAILY_LOSS_LIMIT_ENABLED
+            ),
+            "reverse_mode": runtime.get("reverse_mode", config.REVERSE_MODE),
+            "min_trade_pnl": runtime.get("min_trade_pnl", config.MIN_TRADE_PNL),
+        }
+    )
 
 
-# ─── Run Server ──────────────────────────────────────────
+@app.get("/api/analytics/overview")
+async def get_analytics_overview():
+    sync_runtime_control_settings()
+    return _json_safe(
+        {
+            "total_realized_pnl": journal.get_total_closed_pnl(),
+            "stats_7d": journal.get_trade_stats(days=7),
+            "stats_14d": journal.get_trade_stats(days=14),
+            "stats_30d": journal.get_trade_stats(days=30),
+            "stats_90d": journal.get_trade_stats(days=90),
+        }
+    )
+
+
+@app.get("/api/analytics/daily-breakdown")
+async def get_daily_breakdown(days: int = 30):
+    trades = journal.get_recent_trades(days=days)
+    daily = {}
+    for trade in trades:
+        timestamp = trade.get("closed_at") or trade.get("timestamp")
+        if not timestamp:
+            continue
+        try:
+            date_key = datetime.fromisoformat(timestamp).strftime("%Y-%m-%d")
+        except (TypeError, ValueError):
+            continue
+        daily.setdefault(
+            date_key,
+            {"date": date_key, "pnl": 0, "trades": 0, "wins": 0, "losses": 0},
+        )
+        pnl = trade.get("pnl") or 0
+        daily[date_key]["pnl"] += pnl
+        daily[date_key]["trades"] += 1
+        if pnl > 0:
+            daily[date_key]["wins"] += 1
+        elif pnl < 0:
+            daily[date_key]["losses"] += 1
+
+    result = sorted(daily.values(), key=lambda item: item["date"])
+    cumulative = 0
+    for entry in result:
+        cumulative += entry["pnl"]
+        entry["cumulative_pnl"] = cumulative
+        entry["win_rate"] = entry["wins"] / entry["trades"] if entry["trades"] else 0
+    return _json_safe(result)
+
+
+@app.get("/api/analytics/hourly-performance")
+async def get_hourly_performance(days: int = 30):
+    return _json_safe(journal.get_hourly_performance(days=days))
+
+
+@app.get("/api/analytics/instrument-breakdown")
+async def get_instrument_breakdown(days: int = 30):
+    trades = journal.get_recent_trades(days=days)
+    instruments = {}
+    for trade in trades:
+        instrument = trade.get("instrument") or "Unknown"
+        instruments.setdefault(
+            instrument,
+            {
+                "instrument": instrument,
+                "trades": 0,
+                "wins": 0,
+                "losses": 0,
+                "pnl": 0,
+                "total_hold_mins": 0,
+            },
+        )
+        pnl = trade.get("pnl") or 0
+        instruments[instrument]["pnl"] += pnl
+        instruments[instrument]["trades"] += 1
+        instruments[instrument]["total_hold_mins"] += trade.get("hold_duration_mins") or 0
+        if pnl > 0:
+            instruments[instrument]["wins"] += 1
+        elif pnl < 0:
+            instruments[instrument]["losses"] += 1
+
+    result = []
+    for instrument_data in instruments.values():
+        total = instrument_data["trades"]
+        meaningful = instrument_data["wins"] + instrument_data["losses"]
+        instrument_data["win_rate"] = meaningful and instrument_data["wins"] / meaningful or 0
+        instrument_data["avg_hold_mins"] = total and instrument_data["total_hold_mins"] / total or 0
+        instrument_data["avg_pnl"] = total and instrument_data["pnl"] / total or 0
+        result.append(instrument_data)
+
+    result.sort(key=lambda item: item["pnl"], reverse=True)
+    return _json_safe(result)
+
+
+@app.get("/api/analytics/strategy-breakdown")
+async def get_strategy_breakdown(days: int = 30):
+    trades = journal.get_recent_trades(days=days)
+    strategies = {}
+    for trade in trades:
+        strategy_name = trade.get("strategy_name") or "unlabeled"
+        strategies.setdefault(
+            strategy_name,
+            {"strategy": strategy_name, "trades": 0, "wins": 0, "losses": 0, "pnl": 0},
+        )
+        pnl = trade.get("pnl") or 0
+        strategies[strategy_name]["pnl"] += pnl
+        strategies[strategy_name]["trades"] += 1
+        if pnl > 0:
+            strategies[strategy_name]["wins"] += 1
+        elif pnl < 0:
+            strategies[strategy_name]["losses"] += 1
+
+    result = []
+    for strategy_data in strategies.values():
+        meaningful = strategy_data["wins"] + strategy_data["losses"]
+        strategy_data["win_rate"] = meaningful and strategy_data["wins"] / meaningful or 0
+        strategy_data["avg_pnl"] = (
+            strategy_data["trades"] and strategy_data["pnl"] / strategy_data["trades"] or 0
+        )
+        result.append(strategy_data)
+
+    result.sort(key=lambda item: item["pnl"], reverse=True)
+    return _json_safe(result)
+
+
+@app.get("/api/analytics/trade-distribution")
+async def get_trade_distribution(days: int = 30):
+    trades = journal.get_recent_trades(days=days)
+    pnl_ranges = {
+        "large_loss": 0,
+        "small_loss": 0,
+        "breakeven": 0,
+        "small_win": 0,
+        "large_win": 0,
+    }
+    direction_counts = {"BUY": 0, "SELL": 0}
+    exit_reasons = {}
+
+    for trade in trades:
+        pnl = trade.get("pnl") or 0
+        direction = trade.get("direction") or "BUY"
+        exit_reason = trade.get("exit_reason") or "unknown"
+
+        if pnl <= -5:
+            pnl_ranges["large_loss"] += 1
+        elif pnl < 0:
+            pnl_ranges["small_loss"] += 1
+        elif pnl == 0:
+            pnl_ranges["breakeven"] += 1
+        elif pnl < 5:
+            pnl_ranges["small_win"] += 1
+        else:
+            pnl_ranges["large_win"] += 1
+
+        direction_counts[direction] = direction_counts.get(direction, 0) + 1
+        exit_reasons[exit_reason] = exit_reasons.get(exit_reason, 0) + 1
+
+    return _json_safe(
+        {
+            "pnl_ranges": pnl_ranges,
+            "direction_counts": direction_counts,
+            "exit_reasons": exit_reasons,
+            "total_trades": len(trades),
+        }
+    )
+
+
+@app.get("/api/journal/notes")
+async def get_journal_notes(limit: int = 50, offset: int = 0):
+    return _json_safe(journal.get_journal_notes(limit=limit, offset=offset))
+
+
+@app.get("/api/journal/notes/{note_id}")
+async def get_journal_note(note_id: int):
+    note = journal.get_journal_note(note_id)
+    if not note:
+        raise HTTPException(status_code=404, detail="Note not found")
+    return _json_safe(note)
+
+
+@app.post("/api/journal/notes", status_code=201)
+async def create_journal_note(body: dict):
+    title = (body.get("title") or "").strip()
+    if not title:
+        raise HTTPException(status_code=400, detail="Title is required")
+    note_id = journal.create_journal_note(body)
+    return {"status": "ok", "id": note_id}
+
+
+@app.put("/api/journal/notes/{note_id}")
+async def update_journal_note(note_id: int, body: dict):
+    if not journal.update_journal_note(note_id, body):
+        raise HTTPException(status_code=404, detail="Note not found")
+    return {"status": "ok"}
+
+
+@app.delete("/api/journal/notes/{note_id}")
+async def delete_journal_note(note_id: int):
+    if not journal.delete_journal_note(note_id):
+        raise HTTPException(status_code=404, detail="Note not found")
+    return {"status": "ok"}
+
+
+@app.get("/api/journal/tags")
+async def get_journal_tags():
+    return _json_safe(journal.get_journal_tags())
+
+
+@app.get("/api/journal/trades-for-linking")
+async def get_trades_for_linking(days: int = 30):
+    return _json_safe(journal.get_trades_for_linking(days=days))
+
+
+@app.get("/{full_path:path}")
+async def serve_frontend_routes(full_path: str):
+    if full_path.startswith("api/"):
+        raise HTTPException(status_code=404, detail="Not found")
+    return _serve_frontend_path(full_path)
+
 
 if __name__ == "__main__":
-    print(r"""
-    ╔═══════════════════════════════════════╗
-    ║   📊 SmartTrader Dashboard v3.0       ║
-    ║   Open: http://localhost:8000         ║
-    ╚═══════════════════════════════════════╝
-    """)
+    print(
+        r"""
+    SmartTrader Dashboard v3.0
+    Open: http://localhost:8000
+    """
+    )
     uvicorn.run(
         app,
         host=config.API_HOST,
