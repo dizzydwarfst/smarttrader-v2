@@ -3,9 +3,11 @@ FROM node:20-alpine AS frontend-build
 
 WORKDIR /frontend
 
-# Install deps first (cached layer)
+# Install deps first (cached layer).
+# We use `npm install` rather than `npm ci` because the lock file can drift
+# when deps are updated locally; this keeps the Docker build resilient.
 COPY frontend/package.json frontend/package-lock.json* ./
-RUN npm ci --no-audit --no-fund
+RUN npm install --no-audit --no-fund --loglevel=error
 
 # Copy sources and build
 COPY frontend/ ./
