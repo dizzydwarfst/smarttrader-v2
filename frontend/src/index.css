@@ -1,0 +1,78 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Obsidian / Gold Luxury Palette */
+  --bg: #0B0E14;
+  --bg-card: #151A24;
+  --bg-sidebar: #0B0E14;
+  --bg-header: rgba(11, 14, 20, 0.7);
+  --bg-hover: #1E2532;
+  --bg-muted: #151A24;
+  --border: #2A3548;
+  --border-strong: #3B4A63;
+  --text: #F8FAFC;
+  --text-secondary: #94A3B8;
+  --text-muted: #64748B;
+
+  --gold: #F59E0B;
+  --gold-hover: #FBBF24;
+  --gold-bg: rgba(245, 158, 11, 0.08);
+  --gold-border: rgba(245, 158, 11, 0.28);
+
+  --green: #10B981;
+  --green-bg: rgba(16, 185, 129, 0.10);
+  --red: #EF4444;
+  --red-bg: rgba(239, 68, 68, 0.10);
+  --blue: #3B82F6;
+  --blue-bg: rgba(59, 130, 246, 0.10);
+  --purple: #A78BFA;
+
+  --radius: 12px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'IBM Plex Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  letter-spacing: -0.005em;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Outfit', sans-serif;
+  letter-spacing: -0.02em;
+}
+
+.mono, .font-mono { font-family: 'JetBrains Mono', monospace; letter-spacing: -0.01em; }
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #2A3548; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #3B4A63; }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
+
+@keyframes goldPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4); }
+  50% { box-shadow: 0 0 0 4px rgba(245, 158, 11, 0); }
+}
+.gold-pulse { animation: goldPulse 2s ease-in-out infinite; }
+
+/* Recharts dark grid lines */
+.recharts-cartesian-grid-horizontal line,
+.recharts-cartesian-grid-vertical line { stroke: #1E2532 !important; }
+
+/* Selection */
+::selection { background: rgba(245, 158, 11, 0.3); color: #F8FAFC; }
+
+/* Focus ring override */
+*:focus-visible { outline: 2px solid #F59E0B; outline-offset: 2px; }
