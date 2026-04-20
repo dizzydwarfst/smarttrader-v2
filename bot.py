@@ -246,6 +246,9 @@ class SmartTraderBot:
                 )
             elif command == "close_all":
                 self._close_all_positions()
+            elif command == "reconcile":
+                logger.info("Reconcile requested by API.")
+                self._reconcile_open_trades_with_oanda()
             else:
                 logger.warning(f"Unknown command: {command}")
         except Exception as e:
@@ -844,28 +847,51 @@ class SmartTraderBot:
 
         trade_map = oanda_snapshot.get("trade_map", {})
         by_instrument = oanda_snapshot.get("by_instrument", {})
+        claimed_live_ids: set[str] = set()
+        unresolved = []
 
+        # First pass: reconcile journal rows that carry an oanda_trade_id.
+        # Exact matches claim that live trade so a stray journal duplicate
+        # can't also match it below.
         for trade in journal_trades:
             oanda_trade_id = trade.get("oanda_trade_id")
             if oanda_trade_id and str(oanda_trade_id) in trade_map:
+                claimed_live_ids.add(str(oanda_trade_id))
                 continue
+            if oanda_trade_id:
+                # Had an id but OANDA no longer knows it → stale, finalize.
+                self._finalize_trade_missing_from_broker(
+                    trade.get("instrument") or instrument, trade
+                )
+                continue
+            unresolved.append(trade)
 
-            if not oanda_trade_id:
-                live_candidates = by_instrument.get(trade.get("instrument"), [])
-                matched = False
-                for live_trade in live_candidates:
-                    try:
-                        units = float(live_trade.get("currentUnits", 0) or 0)
-                    except (TypeError, ValueError):
-                        units = 0
-                    live_direction = Signal.BUY if units > 0 else Signal.SELL if units < 0 else None
-                    if live_direction == trade.get("direction"):
-                        matched = True
-                        break
-                if matched:
+        # Second pass: journal rows with no oanda_trade_id can only match a
+        # still-unclaimed live trade of the same instrument+direction. This
+        # prevents several journal duplicates from all pointing at the single
+        # net position OANDA keeps under netting mode.
+        for trade in unresolved:
+            live_candidates = by_instrument.get(trade.get("instrument"), [])
+            matched_id = None
+            for live_trade in live_candidates:
+                live_id = live_trade.get("id")
+                live_id_str = str(live_id) if live_id is not None else None
+                if live_id_str is None or live_id_str in claimed_live_ids:
                     continue
-
-            self._finalize_trade_missing_from_broker(trade.get("instrument") or instrument, trade)
+                try:
+                    units = float(live_trade.get("currentUnits", 0) or 0)
+                except (TypeError, ValueError):
+                    units = 0
+                live_direction = Signal.BUY if units > 0 else Signal.SELL if units < 0 else None
+                if live_direction == trade.get("direction"):
+                    matched_id = live_id_str
+                    break
+            if matched_id:
+                claimed_live_ids.add(matched_id)
+                continue
+            self._finalize_trade_missing_from_broker(
+                trade.get("instrument") or instrument, trade
+            )
 
         return oanda_snapshot
 

@@ -450,6 +450,90 @@ class BotExecutionTests(unittest.TestCase):
         self.assertEqual(len(bot.journal.get_open_trades("EUR_USD")), 1)
         self.assertEqual(bot.journal.get_open_trades("EUR_USD")[0]["oanda_trade_id"], "T-2")
 
+    def test_reconcile_closes_duplicate_journal_rows_against_single_live_trade(self):
+        """Under OANDA netting mode the bot can open several same-direction
+        orders that OANDA merges into one live trade. Only one journal row
+        may claim that live trade — the rest are stale and must be closed."""
+        class JournalStub:
+            def __init__(self):
+                self.trades = [
+                    {
+                        "id": 1,
+                        "instrument": "EUR_JPY",
+                        "oanda_trade_id": None,
+                        "direction": Signal.BUY,
+                        "entry_price": 186.940,
+                        "quantity": 10,
+                        "status": "open",
+                    },
+                    {
+                        "id": 2,
+                        "instrument": "EUR_JPY",
+                        "oanda_trade_id": None,
+                        "direction": Signal.BUY,
+                        "entry_price": 187.030,
+                        "quantity": 15,
+                        "status": "open",
+                    },
+                    {
+                        "id": 3,
+                        "instrument": "EUR_JPY",
+                        "oanda_trade_id": None,
+                        "direction": Signal.BUY,
+                        "entry_price": 187.028,
+                        "quantity": 14,
+                        "status": "open",
+                    },
+                ]
+                self.closed = []
+
+            def get_open_trades(self, instrument=None):
+                return [
+                    trade for trade in self.trades
+                    if trade["status"] == "open"
+                    and (instrument is None or trade["instrument"] == instrument)
+                ]
+
+            def close_trade(self, trade_id, *_args, **_kwargs):
+                self.closed.append(trade_id)
+                for trade in self.trades:
+                    if trade["id"] == trade_id:
+                        trade["status"] = "closed"
+
+            def get_trade_stats(self, days=30):
+                return {"total": 0}
+
+            def get_recent_trades(self, days=30):
+                return []
+
+            def get_param_history(self, limit=10):
+                return []
+
+        bot = bot_module.SmartTraderBot.__new__(bot_module.SmartTraderBot)
+        bot.journal = JournalStub()
+        bot.memory = DummyMemory()
+        bot.ai_advisor = SimpleNamespace(post_trade_review=lambda *_args, **_kwargs: None)
+        bot._get_pending_ai_exit = lambda trade: None
+        bot._clear_pending_ai_exit = lambda trade: None
+        bot._verify_closed_trade = lambda instrument, trade: None
+
+        snapshot = {
+            "trade_map": {
+                "LIVE-1": {"id": "LIVE-1", "instrument": "EUR_JPY", "currentUnits": "39"},
+            },
+            "by_instrument": {
+                "EUR_JPY": [{"id": "LIVE-1", "instrument": "EUR_JPY", "currentUnits": "39"}],
+            },
+        }
+
+        bot._reconcile_open_trades_with_oanda(instrument="EUR_JPY", oanda_snapshot=snapshot)
+
+        # Exactly one journal row should remain open — the others are
+        # finalized as missing from the broker.
+        remaining = bot.journal.get_open_trades("EUR_JPY")
+        self.assertEqual(len(remaining), 1)
+        self.assertEqual(len(bot.journal.closed), 2)
+
     def test_missing_take_profit_profit_lock_closes_trade_as_win(self):
         bot = bot_module.SmartTraderBot.__new__(bot_module.SmartTraderBot)
         bot.account_id = "practice-account"

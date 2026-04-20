@@ -11,6 +11,7 @@ back to the legacy dashboard.html page.
 
 import json
 import logging
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -27,6 +28,31 @@ from strategy_library import StrategyLibrary
 from trade_journal import TradeJournal
 from trading_memory import TradingMemory
 from trading_profiles import PROFILES, read_command, write_command
+
+RECONCILE_MIN_INTERVAL_SECONDS = 5.0
+_last_reconcile_request = 0.0
+
+
+def _request_reconcile(force: bool = False) -> bool:
+    """Queue a reconcile command for the bot's next loop tick.
+
+    Throttled so a burst of dashboard requests doesn't flood the command file.
+    Skips queuing if another command is still unacknowledged, to avoid
+    overwriting it (write_command replaces the pending command).
+    """
+    global _last_reconcile_request
+    now = time.monotonic()
+    if not force and (now - _last_reconcile_request) < RECONCILE_MIN_INTERVAL_SECONDS:
+        return False
+    if read_command() is not None:
+        return False
+    _last_reconcile_request = now
+    try:
+        write_command("reconcile")
+        return True
+    except Exception as exc:
+        logger.debug(f"Could not queue reconcile command: {exc}")
+        return False
 
 logger = logging.getLogger("Dashboard")
 
@@ -134,6 +160,8 @@ async def get_status():
     runtime = sync_runtime_control_settings()
     stats = journal.get_trade_stats(days=14)
     open_trades = journal.get_open_trades()
+    if open_trades and runtime.get("bot_online"):
+        _request_reconcile()
     open_positions = (
         journal.get_open_position_count()
         if hasattr(journal, "get_open_position_count")
@@ -193,6 +221,15 @@ async def get_strategy_library_snapshot():
 @app.get("/api/trades/open")
 async def get_open_trades():
     return _json_safe(journal.get_open_trades())
+
+
+@app.post("/api/trades/reconcile")
+async def reconcile_trades():
+    queued = _request_reconcile(force=True)
+    return {
+        "queued": queued,
+        "open_trades": len(journal.get_open_trades()),
+    }
 
 
 @app.get("/api/trades/recent")
