@@ -24,6 +24,19 @@ Trade with discipline first, profit second. Stay alive, stay consistent, and let
 ## Diary
 
 <!-- AUTO-DIARY:START -->
+- 2026-04-16 14:05 | Session stop: Bot session ended cleanly.
+  - Open positions in journal: 0
+  - Recent closed trades (30d): 42
+
+- 2026-04-16 14:05 | Session start: Bot started in practice mode and is scanning 7 instruments.
+  - Strategies: ema, breakout, vwap_bounce, rsi_exhaustion
+  - Risk per trade: 3.0% | Max positions: 6
+  - Granularity: M5 | Poll every 10s
+
+- 2026-04-10 19:18 | Session stop: Bot session ended cleanly.
+  - Open positions in journal: 0
+  - Recent closed trades (30d): 42
+
 - 2026-04-10 18:08 | Learning cycle: Learning adopted rsi_oversold 30.0 -> 25.0.
   - Trades reviewed: 42 | win rate 26.2% | total P&L $-158.78
   - Best candidate score: 55.76 from backtest_rsi
@@ -182,17 +195,4 @@ Trade with discipline first, profit second. Stay alive, stay consistent, and let
 - 2026-04-02 09:55 | Trade closed: Trade #31 on EUR_JPY closed with $-22.05.
   - Exit price: 184.082 | Reason: signal
   - P&L: -0.02% of account
-
-- 2026-04-02 09:54 | Trade closed: Trade #30 on USD_JPY closed with $-28.00.
-  - Exit price: 158.515 | Reason: stop_loss
-  - P&L: -0.03% of account
-
-- 2026-04-02 09:54 | Session start: Bot started in practice mode and is scanning 7 instruments.
-  - Strategies: ema, breakout
-  - Risk per trade: 3.0% | Max positions: 4
-  - Granularity: M5 | Poll every 10s
-
-- 2026-04-01 09:15 | Session stop: Bot session ended cleanly.
-  - Open positions in journal: 4
-  - Recent closed trades (30d): 29
 <!-- AUTO-DIARY:END -->

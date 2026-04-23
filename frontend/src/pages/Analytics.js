@@ -59,8 +59,9 @@ export default function Analytics() {
     return () => clearInterval(interval);
   }, [fetchData]);
 
-  const stats30 = overview?.stats_30d;
+  const stats = overview?.[`stats_${period}d`] || overview?.stats_30d;
   const stats7 = overview?.stats_7d;
+  const stats30 = overview?.stats_30d;
 
   const hourlyChartData = Object.entries(hourlyData).map(([hour, data]) => ({
     hour: `${hour}:00`,
@@ -116,16 +117,16 @@ export default function Analytics() {
           valueColor={overview?.total_realized_pnl >= 0 ? GREEN : RED}
           sub={`30d: ${formatMoney(stats30?.total_pnl)} | 7d: ${formatMoney(stats7?.total_pnl)}`} />
         <StatCard testId="analytics-total-trades" icon={Activity} title={`Total Trades (${period}d)`} tint="blue"
-          value={stats30?.total?.toString() || '0'}
-          sub={`Wins: ${stats30?.wins || 0} | Losses: ${stats30?.losses || 0} | Noise: ${stats30?.noise || 0}`} />
+          value={stats?.total?.toString() || '0'}
+          sub={`Wins: ${stats?.wins || 0} | Losses: ${stats?.losses || 0} | Noise: ${stats?.noise || 0}`} />
         <StatCard testId="analytics-win-rate" icon={Target} title={`Win Rate (${period}d)`} tint="amber"
-          value={stats30 ? `${(stats30.win_rate * 100).toFixed(1)}%` : '--%'}
+          value={stats ? `${(stats.win_rate * 100).toFixed(1)}%` : '--%'}
           valueColor={GOLD}
-          sub={`Sharpe: ${stats30?.sharpe_ratio?.toFixed(2) || '--'} | Sortino: ${stats30?.sortino_ratio?.toFixed(2) || '--'}`} />
-        <StatCard testId="analytics-avg-pnl" icon={TrendingUp} title="Avg P&L / Trade" tint="green"
-          value={formatMoney(stats30?.avg_pnl)}
-          valueColor={stats30?.avg_pnl >= 0 ? GREEN : RED}
-          sub={`Avg Hold: ${stats30?.avg_hold_mins?.toFixed(0) || '--'} min | PF: ${formatProfitFactor(stats30?.profit_factor)}`} />
+          sub={`Sharpe: ${stats?.sharpe_ratio?.toFixed(2) || '--'} | Sortino: ${stats?.sortino_ratio?.toFixed(2) || '--'}`} />
+        <StatCard testId="analytics-avg-pnl" icon={TrendingUp} title={`Avg P&L / Trade (${period}d)`} tint="green"
+          value={formatMoney(stats?.avg_pnl)}
+          valueColor={stats?.avg_pnl >= 0 ? GREEN : RED}
+          sub={`Avg Hold: ${stats?.avg_hold_mins?.toFixed(0) || '--'} min | PF: ${formatProfitFactor(stats?.profit_factor)}`} />
       </div>
 
       <Card title="Daily P&L Breakdown" icon={BarChart3} testId="daily-pnl-chart">

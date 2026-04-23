@@ -11,13 +11,16 @@ back to the legacy dashboard.html page.
 
 import json
 import logging
+import os
+import shutil
+import sqlite3
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 import uvicorn
 
 from ai_advisor import AIAdvisor
@@ -149,6 +152,111 @@ async def serve_dashboard():
     return _serve_frontend_entry()
 
 
+# ─── Deep health check ───────────────────────────────────
+# Answers "is every moving part actually OK, not just the HTTP listener?"
+# Returns 200 when everything is green, 503 when any CRITICAL check fails.
+# Intended for Docker healthcheck and external monitors (UptimeRobot etc).
+
+_STALE_HEARTBEAT_SECONDS = 180  # bot_status.json older than this = stale
+_MIN_FREE_DISK_MB = 250
+
+
+def _check_db():
+    db_path = APP_DIR / "trades.db"
+    if not db_path.exists():
+        return {"ok": False, "critical": True, "detail": "trades.db missing"}
+    try:
+        conn = sqlite3.connect(str(db_path), timeout=2)
+        conn.execute("SELECT 1").fetchone()
+        conn.close()
+        size_mb = round(db_path.stat().st_size / (1024 * 1024), 2)
+        return {"ok": True, "critical": True, "detail": f"{size_mb} MB"}
+    except Exception as exc:
+        return {"ok": False, "critical": True, "detail": f"db error: {exc}"}
+
+
+def _check_heartbeat():
+    runtime = read_runtime_status()
+    if not runtime:
+        return {"ok": False, "critical": True, "detail": "bot_status.json missing"}
+    ts = runtime.get("timestamp")
+    if not ts:
+        return {"ok": False, "critical": True, "detail": "no timestamp in bot_status.json"}
+    try:
+        last = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+        if last.tzinfo is None:
+            last = last.replace(tzinfo=timezone.utc)
+        age = (datetime.now(timezone.utc) - last).total_seconds()
+    except Exception as exc:
+        return {"ok": False, "critical": True, "detail": f"bad timestamp: {exc}"}
+    if age > _STALE_HEARTBEAT_SECONDS:
+        return {"ok": False, "critical": True, "detail": f"stale heartbeat ({int(age)}s old)"}
+    return {"ok": True, "critical": True, "detail": f"{int(age)}s ago"}
+
+
+def _check_disk():
+    try:
+        free_mb = shutil.disk_usage(str(APP_DIR)).free // (1024 * 1024)
+    except Exception as exc:
+        return {"ok": False, "critical": False, "detail": f"stat error: {exc}"}
+    ok = free_mb >= _MIN_FREE_DISK_MB
+    return {"ok": ok, "critical": False, "detail": f"{free_mb} MB free"}
+
+
+def _check_oanda():
+    """Cheap OANDA reachability check. Non-critical so flaky network
+    doesn't flap the whole healthcheck — the bot has its own retry logic."""
+    try:
+        import requests
+        token = os.environ.get("OANDA_API_KEY", "").strip()
+        if not token:
+            return {"ok": False, "critical": False, "detail": "OANDA_API_KEY not set"}
+        base = config.OANDA_PRACTICE_URL if config.TRADING_MODE == "practice" else config.OANDA_LIVE_URL
+        account_id = os.environ.get("OANDA_ACCOUNT_ID", "").strip()
+        if not account_id:
+            return {"ok": False, "critical": False, "detail": "OANDA_ACCOUNT_ID not set"}
+        resp = requests.get(
+            f"{base}/v3/accounts/{account_id}/summary",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=4,
+        )
+        if resp.status_code == 200:
+            return {"ok": True, "critical": False, "detail": "reachable"}
+        return {"ok": False, "critical": False, "detail": f"HTTP {resp.status_code}"}
+    except Exception as exc:
+        return {"ok": False, "critical": False, "detail": f"unreachable: {exc.__class__.__name__}"}
+
+
+def _check_frontend():
+    ready = FRONTEND_INDEX_PATH.exists()
+    return {
+        "ok": ready,
+        "critical": False,
+        "detail": "built" if ready else "using legacy dashboard.html",
+    }
+
+
+@app.get("/api/health")
+async def health_check():
+    checks = {
+        "database":  _check_db(),
+        "heartbeat": _check_heartbeat(),
+        "disk":      _check_disk(),
+        "oanda":     _check_oanda(),
+        "frontend":  _check_frontend(),
+    }
+    all_ok = all(c["ok"] for c in checks.values())
+    critical_ok = all(c["ok"] for c in checks.values() if c.get("critical"))
+    status = "healthy" if all_ok else ("degraded" if critical_ok else "unhealthy")
+    payload = {
+        "status": status,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "checks": checks,
+    }
+    http_status = 200 if critical_ok else 503
+    return JSONResponse(content=payload, status_code=http_status)
+
+
 @app.get("/api/config")
 async def get_config():
     sync_runtime_control_settings()
@@ -257,7 +365,25 @@ async def get_learning_history(limit: int = 20):
 @app.get("/api/ai/status")
 async def get_ai_status():
     sync_runtime_control_settings()
-    return _json_safe(advisor.get_status())
+    status = advisor.get_status()
+    cfg = config.to_dict()
+    merged = {
+        **status,
+        "ai_enabled": status.get("enabled", False),
+        "has_claude": cfg.get("has_claude", False),
+        "ai_mode": cfg.get("ai_mode"),
+        "ai_model": cfg.get("ai_model"),
+        "ai_learning_enabled": cfg.get("ai_learning_enabled", False),
+        "ai_min_confidence": cfg.get("ai_min_confidence"),
+        "ai_min_size_mult": cfg.get("ai_min_size_mult"),
+        "ai_max_size_mult": cfg.get("ai_max_size_mult"),
+        "ai_max_automated_reviews_per_week": cfg.get(
+            "ai_max_automated_reviews_per_week"
+        ),
+        "ai_post_trade_review_enabled": cfg.get("ai_post_trade_review_enabled"),
+        "reviews_this_week": status.get("automated_reviews_used", 0),
+    }
+    return _json_safe(merged)
 
 
 @app.get("/api/ai/analyze")

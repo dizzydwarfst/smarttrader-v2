@@ -2415,6 +2415,8 @@ def parse_args():
 
 
 def main():
+    from alerts import send_alert_safe, alerts_configured
+
     args = parse_args()
     if args.dashboard is not None:
         config.AUTO_START_DASHBOARD = args.dashboard
@@ -2425,12 +2427,33 @@ def main():
     ║   Gold · Silver · USD/JPY             ║
     ╚═══════════════════════════════════════╝
     """)
+    if alerts_configured():
+        send_alert_safe(
+            f"Bot starting — mode={config.TRADING_MODE}",
+            level="info",
+            silent=True,
+        )
+
     bot = SmartTraderBot()
+
     def handler(sig, frame):
+        send_alert_safe("Bot stopping (SIGINT)", level="info", silent=True)
         bot.stop()
         sys.exit(0)
     sig_module.signal(sig_module.SIGINT, handler)
-    bot.start()
+
+    try:
+        bot.start()
+    except SystemExit:
+        raise
+    except BaseException as exc:
+        # Anything else crashed the main loop. Tell the operator before we die
+        # so restart:always doesn't silently mask a recurring problem.
+        send_alert_safe(
+            f"Bot crashed: {exc.__class__.__name__}: {exc}",
+            level="critical",
+        )
+        raise
 
 
 if __name__ == "__main__":

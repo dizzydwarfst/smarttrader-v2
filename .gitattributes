@@ -1,0 +1,3 @@
+# Keep shell scripts LF-only so they execute on the Linux server
+# even when the repo is cloned on Windows.
+*.sh text eol=lf

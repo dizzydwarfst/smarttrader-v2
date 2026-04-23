@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   smarttrader:
     build: .
@@ -15,10 +13,14 @@ services:
       - ./trades.db:/app/trades.db           # Persist trade history
       - ./soul.md:/app/soul.md               # Persist bot memory
       - ./skills.md:/app/skills.md           # Persist skills snapshot
+      - ./ai_review_state.json:/app/ai_review_state.json  # Persist AI review cursor
       - ./strategy_cards:/app/strategy_cards  # Strategy configs
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/bot/control-status')"]
+      # Deep health check — verifies DB, heartbeat, OANDA, frontend, disk.
+      # Returns 503 if any CRITICAL check fails; Docker will mark unhealthy
+      # and (with restart: always) the orchestrator can recycle.
+      test: ["CMD", "python", "-c", "import urllib.request,sys; r=urllib.request.urlopen('http://localhost:8000/api/health', timeout=5); sys.exit(0 if r.status==200 else 1)"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 15s
+      start_period: 30s

@@ -12,6 +12,7 @@ venv/
 bot_status.json
 runtime_commands.json
 trades.db
+ai_review_state.json
 
 # Node / frontend build artifacts
 node_modules/

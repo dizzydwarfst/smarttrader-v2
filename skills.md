@@ -15,12 +15,12 @@ This file tracks the trading skills the bot is building from scratch. The bot an
 ## Current Skill Snapshot
 
 <!-- AUTO-SKILLS:START -->
-- Updated: 2026-04-10 18:08
+- Updated: 2026-04-16 14:05
 - Trades reviewed: 42
-- Scorecard: win rate 26.2% | profit factor 0.68 | total P&L $-158.78
+- Scorecard: win rate 26.8% | profit factor 0.68 | total P&L $-158.79
 - Strongest market right now: USD_JPY | wins 8 | net $+58.26
-- Most comfortable regime: choppy | 12 trade(s) | net $-76.55
-- Needs more practice: EUR_JPY | losses 17 | net $-212.02
+- Most comfortable regime: choppy | 12 trade(s) | net $-76.57
+- Needs more practice: EUR_JPY | losses 17 | net $-212.03
 - Latest adaptation: rsi_oversold changed from 30.0 to 25.0.
 - Next focus: Improve entry selectivity and skip lower-quality setups. Tighten loss control and avoid letting weak trades linger.
 <!-- AUTO-SKILLS:END -->
