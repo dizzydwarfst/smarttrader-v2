@@ -13,7 +13,7 @@ services:
       - ./trades.db:/app/trades.db           # Persist trade history
       - ./soul.md:/app/soul.md               # Persist bot memory
       - ./skills.md:/app/skills.md           # Persist skills snapshot
-      - ./ai_review_state.json:/app/ai_review_state.json  # Persist AI review cursor
+      - ./state:/app/state                   # Persist AI review cursor + similar runtime state
       - ./strategy_cards:/app/strategy_cards  # Strategy configs
     healthcheck:
       # Deep health check — verifies DB, heartbeat, OANDA, frontend, disk.
