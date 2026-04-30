@@ -64,7 +64,7 @@ class Config:
     PRACTICE_BREAKOUT_LOOKBACK = int(os.getenv("PRACTICE_BREAKOUT_LOOKBACK", 10))
     PRACTICE_BREAKOUT_VOLUME_MULT = float(os.getenv("PRACTICE_BREAKOUT_VOLUME_MULT", 1.0))
     PRACTICE_RISK_PER_TRADE = float(os.getenv("PRACTICE_RISK_PER_TRADE", 0.03))
-    PRACTICE_MAX_POSITIONS = int(os.getenv("PRACTICE_MAX_POSITIONS", 6))
+    PRACTICE_MAX_POSITIONS = int(os.getenv("PRACTICE_MAX_POSITIONS", 2))
     PRACTICE_DAILY_LOSS_LIMIT = float(os.getenv("PRACTICE_DAILY_LOSS_LIMIT", 0.06))
     PRACTICE_SPREAD_LIMIT_MULT = float(os.getenv("PRACTICE_SPREAD_LIMIT_MULT", 2.5))
     USE_VIRTUAL_BANKROLL = os.getenv("USE_VIRTUAL_BANKROLL", "true").lower() == "true"
@@ -90,7 +90,7 @@ class Config:
     VWAP_VOLUME_MULT = float(os.getenv("VWAP_VOLUME_MULT", 1.2))
     VWAP_WICK_RATIO = float(os.getenv("VWAP_WICK_RATIO", 1.5))
 
-    SCALP_ENABLED = os.getenv("SCALP_ENABLED", "auto").lower()
+    SCALP_ENABLED = os.getenv("SCALP_ENABLED", "false").lower()
     SCALP_FAST_EMA = int(os.getenv("SCALP_FAST_EMA", 3))
     SCALP_SLOW_EMA = int(os.getenv("SCALP_SLOW_EMA", 8))
     SCALP_RSI_PERIOD = int(os.getenv("SCALP_RSI_PERIOD", 7))
@@ -107,7 +107,7 @@ class Config:
     HISTORY_COUNT = int(os.getenv("HISTORY_COUNT", 200))
 
     RISK_PER_TRADE = float(os.getenv("RISK_PER_TRADE", 0.02))
-    MAX_POSITIONS = int(os.getenv("MAX_POSITIONS", 3))
+    MAX_POSITIONS = int(os.getenv("MAX_POSITIONS", 2))
     STOP_LOSS_ATR_MULT = float(os.getenv("STOP_LOSS_ATR_MULT", 1.5))
     TAKE_PROFIT_ATR_MULT = float(os.getenv("TAKE_PROFIT_ATR_MULT", 3.0))
     DAILY_LOSS_LIMIT = float(os.getenv("DAILY_LOSS_LIMIT", 0.05))
@@ -119,8 +119,8 @@ class Config:
     SCALE_IN_SIZE_FRACTION = float(os.getenv("SCALE_IN_SIZE_FRACTION", 0.5))
 
     TRAILING_STOP_ENABLED = os.getenv("TRAILING_STOP_ENABLED", "true").lower() == "true"
-    TRAILING_STOP_ACTIVATION_ATR = float(os.getenv("TRAILING_STOP_ACTIVATION_ATR", 1.0))
-    TRAILING_STOP_DISTANCE_ATR = float(os.getenv("TRAILING_STOP_DISTANCE_ATR", 1.0))
+    TRAILING_STOP_ACTIVATION_ATR = float(os.getenv("TRAILING_STOP_ACTIVATION_ATR", 0.5))
+    TRAILING_STOP_DISTANCE_ATR = float(os.getenv("TRAILING_STOP_DISTANCE_ATR", 0.5))
 
     SPREAD_FILTER_ENABLED = os.getenv("SPREAD_FILTER_ENABLED", "true").lower() == "true"
     SPREAD_LIMIT_MULT = float(os.getenv("SPREAD_LIMIT_MULT", 1.0))
@@ -141,7 +141,7 @@ class Config:
 
     INSTRUMENTS = os.getenv(
         "INSTRUMENTS",
-        "XAU_USD,XAG_USD,USD_JPY,EUR_USD,GBP_USD,AUD_USD,EUR_JPY",
+        "XAU_USD,XAG_USD,USD_JPY,EUR_USD,AUD_USD,EUR_JPY",
     ).split(",")
 
     POLL_INTERVAL = int(os.getenv("POLL_INTERVAL", 30))
