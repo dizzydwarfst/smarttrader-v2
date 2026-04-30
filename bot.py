@@ -1837,6 +1837,14 @@ class SmartTraderBot:
                 return "take_profit"
         return "signal"
 
+    # Currencies for which OANDA quotes USD as the base (pair is USD_X, not X_USD).
+    # When converting these to USD we must use the inverse pair to avoid
+    # repeatedly hitting OANDA with invalid instruments like "JPY_USD".
+    _USD_BASE_QUOTE_CURRENCIES = frozenset({
+        "JPY", "CHF", "CAD", "HKD", "SGD", "MXN", "NOK", "SEK",
+        "DKK", "ZAR", "TRY", "PLN", "CNH", "THB", "CZK", "HUF",
+    })
+
     def _quote_currency_to_usd_rate(self, quote_currency, exit_price=None, instrument=None):
         if quote_currency == "USD":
             return 1.0
@@ -1844,16 +1852,21 @@ class SmartTraderBot:
         if instrument and instrument.startswith("USD_") and exit_price:
             return 1.0 / exit_price
 
+        prefer_inverse = quote_currency in self._USD_BASE_QUOTE_CURRENCIES
         direct_pair = f"{quote_currency}_USD"
         inverse_pair = f"USD_{quote_currency}"
 
-        direct_quote = self._get_current_price(direct_pair)
-        if direct_quote:
-            return direct_quote["mid"]
+        first_pair, second_pair = (
+            (inverse_pair, direct_pair) if prefer_inverse else (direct_pair, inverse_pair)
+        )
 
-        inverse_quote = self._get_current_price(inverse_pair)
-        if inverse_quote and inverse_quote["mid"]:
-            return 1.0 / inverse_quote["mid"]
+        first_quote = self._get_current_price(first_pair)
+        if first_quote and first_quote.get("mid"):
+            return (1.0 / first_quote["mid"]) if prefer_inverse else first_quote["mid"]
+
+        second_quote = self._get_current_price(second_pair)
+        if second_quote and second_quote.get("mid"):
+            return second_quote["mid"] if prefer_inverse else (1.0 / second_quote["mid"])
 
         return None
 
